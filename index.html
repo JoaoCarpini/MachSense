@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MachSense — Dashboard de Produção</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ===================== TELA DE LOGIN ===================== -->
+  <section class="login-page" id="login-screen">
+    <div class="login">
+      <div class="login-card" aria-labelledby="login-title">
+
+        <header class="login-head">
+          <span class="brand-mark brand-mark-lg" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="3"/>
+              <path d="M7 15l3-4 3 3 4-6"/>
+            </svg>
+          </span>
+          <h1 id="login-title">MachSense</h1>
+          <p>Controle de produção industrial</p>
+        </header>
+
+        <form class="login-form" id="login-form" novalidate>
+
+          <div class="form-error" id="login-error" role="alert" hidden>
+            <span class="form-error-tag">Erro</span>
+            <p>Usuário ou senha inválidos. Verifique os dados e tente novamente.</p>
+          </div>
+
+          <div class="field">
+            <label for="usuario">Usuário</label>
+            <div class="input">
+              <span class="input-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="8" r="4"/>
+                  <path d="M4 21a8 8 0 0 1 16 0"/>
+                </svg>
+              </span>
+              <input type="text" id="usuario" name="usuario" value="admin" placeholder="admin" autocomplete="username" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="senha">Senha</label>
+            <div class="input">
+              <span class="input-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="11" width="16" height="10" rx="2"/>
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4"/>
+                </svg>
+              </span>
+              <input type="password" id="senha" name="senha" placeholder="••••••" autocomplete="current-password" required>
+            </div>
+            <p class="field-hint">Mínimo de 6 caracteres.</p>
+          </div>
+
+          <div class="login-options">
+            <label class="check">
+              <input type="checkbox" name="lembrar" id="lembrar">
+              <span>Manter conectado neste terminal</span>
+            </label>
+            <a href="#" class="link">Esqueci a senha</a>
+          </div>
+
+          <button type="submit" class="btn-primary" id="login-submit">Acessar produção</button>
+        </form>
+
+        <footer class="login-foot">
+          <p>MachSense Production v2.1.0-Live. Para suporte contactar equipe de TI industrial.</p>
+          <p class="mono">Acesso de demonstração: admin / admin</p>
+        </footer>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== SISTEMA ===================== -->
+  <div class="app" id="app" hidden>
+
+    <!-- ===================== MENU LATERAL ===================== -->
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="3"/>
+            <path d="M7 15l3-4 3 3 4-6"/>
+          </svg>
+        </span>
+        <div class="brand-text">
+          <strong>MachSense</strong>
+          <small>Produção industrial</small>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Navegação principal">
+        <ul>
+          <li><a href="#" class="nav-link is-active" data-view="dashboard">Dashboard</a></li>
+          <li><a href="#" class="nav-link">Máquinas</a></li>
+          <li><a href="#" class="nav-link">Paradas</a></li>
+          <li><a href="#" class="nav-link">Relatórios</a></li>
+          <li><a href="#" class="nav-link" data-view="usuarios">Configurações</a></li>
+        </ul>
+      </nav>
+
+      <div class="sidebar-footer">
+        <p class="line-status"><span class="dot dot-ok"></span>Linha_prod #01 : OK</p>
+        <div class="user">
+          <span class="avatar" id="user-avatar" aria-hidden="true">CS</span>
+          <div>
+            <strong id="user-nome">Eng. Carlos S.</strong>
+            <small>Supervisor de produção</small>
+          </div>
+          <a href="#" class="logout" id="logout" title="Sair do sistema">Sair</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ===================== ÁREA PRINCIPAL ===================== -->
+    <div class="main">
+
+      <!-- HEADER -->
+      <header class="topbar" id="topbar">
+        <div class="topbar-title">
+          <nav class="breadcrumb" aria-label="Localização">
+            <a href="#">Início</a><span>/</span><span>Dashboard</span>
+          </nav>
+          <h1>Visão geral da produção <span class="badge badge-ok">Produzindo / Normal</span></h1>
+        </div>
+
+        <form class="filters" action="#">
+          <label>
+            <span>Período</span>
+            <select name="periodo">
+              <option>Hoje</option>
+              <option>Turno atual</option>
+              <option>Últimos 7 dias</option>
+              <option>Mês atual</option>
+            </select>
+          </label>
+          <label>
+            <span>Setor</span>
+            <select name="setor">
+              <option>Todos</option>
+              <option>Usinagem</option>
+              <option>Estamparia</option>
+              <option>Solda</option>
+              <option>Montagem</option>
+            </select>
+          </label>
+          <label>
+            <span>Turno</span>
+            <select name="turno">
+              <option>Todos</option>
+              <option>1º turno</option>
+              <option>2º turno</option>
+              <option>3º turno</option>
+            </select>
+          </label>
+          <p class="last-update">Última atualização: <span class="mono" id="last-update">Hoje, 14:32:01 (live)</span></p>
+        </form>
+      </header>
+
+      <!-- DASHBOARD -->
+      <main class="dashboard" id="view-dashboard">
+
+        <!-- ALERTAS -->
+        <section class="alerts" aria-label="Alertas">
+          <div class="alert alert-danger">
+            <span class="alert-tag">Parada</span>
+            <p><strong>Prensa hidráulica #02</strong> parada há <span class="mono">00:42</span> — quebra de ferramenta. Manutenção acionada.</p>
+            <span class="mono alert-time">14:08</span>
+          </div>
+          <div class="alert alert-warn">
+            <span class="alert-tag">Atenção</span>
+            <p><strong>Setor de Estamparia</strong> com eficiência a <span class="mono">78%</span>, abaixo da meta de 85% para o turno.</p>
+            <span class="mono alert-time">13:55</span>
+          </div>
+        </section>
+
+        <!-- INDICADORES PRINCIPAIS -->
+        <section class="kpis" aria-label="Indicadores principais">
+          <article class="kpi">
+            <h2>Produção hoje</h2>
+            <p class="kpi-value mono">8.412 <small>pç</small></p>
+            <div class="progress" aria-hidden="true"><span class="bar bar-info w-84"></span></div>
+            <p class="kpi-meta">Meta <span class="mono">10.000 pç</span> · <span class="up">84%</span></p>
+          </article>
+
+          <article class="kpi">
+            <h2>Eficiência produtiva</h2>
+            <p class="kpi-value mono">87,4 <small>%</small></p>
+            <div class="progress" aria-hidden="true"><span class="bar bar-ok w-87"></span></div>
+            <p class="kpi-meta">Meta <span class="mono">85%</span> · <span class="up">+2,4 pp</span></p>
+          </article>
+
+          <article class="kpi kpi-alert">
+            <h2>Perdas</h2>
+            <p class="kpi-value mono">213 <small>pç</small></p>
+            <div class="progress" aria-hidden="true"><span class="bar bar-danger w-63"></span></div>
+            <p class="kpi-meta">2,5% da produção · limite <span class="mono">2,0%</span> · <span class="down">acima</span></p>
+          </article>
+
+          <article class="kpi">
+            <h2>Tempo de máquina parada</h2>
+            <p class="kpi-value mono">03:17 <small>h</small></p>
+            <div class="progress" aria-hidden="true"><span class="bar bar-warn w-55"></span></div>
+            <p class="kpi-meta">7 paradas · limite <span class="mono">04:00 h</span></p>
+          </article>
+
+          <article class="kpi">
+            <h2>Disponibilidade</h2>
+            <p class="kpi-value mono">91,2 <small>%</small></p>
+            <div class="progress" aria-hidden="true"><span class="bar bar-ok w-91"></span></div>
+            <p class="kpi-meta">Meta <span class="mono">90%</span> · <span class="up">+1,2 pp</span></p>
+          </article>
+
+          <article class="kpi">
+            <h2>Máquinas ativas</h2>
+            <p class="kpi-value mono">9<small>/12</small></p>
+            <ul class="kpi-legend">
+              <li><span class="dot dot-ok"></span>9 operando</li>
+              <li><span class="dot dot-danger"></span>1 parada</li>
+              <li><span class="dot dot-warn"></span>1 manutenção</li>
+              <li><span class="dot dot-off"></span>1 inativa</li>
+            </ul>
+          </article>
+        </section>
+
+        <!-- LINHA: STATUS DAS MÁQUINAS + STATUS DOS SETORES -->
+        <div class="row row-2-1">
+
+          <section class="panel" aria-labelledby="t-maquinas">
+            <header class="panel-head">
+              <h2 id="t-maquinas">Status das máquinas</h2>
+              <ul class="legend">
+                <li><span class="dot dot-ok"></span>Operando</li>
+                <li><span class="dot dot-warn"></span>Atenção</li>
+                <li><span class="dot dot-danger"></span>Parada</li>
+                <li><span class="dot dot-maint"></span>Manutenção</li>
+                <li><span class="dot dot-off"></span>Inativa</li>
+              </ul>
+            </header>
+
+            <div class="machines">
+              <article class="machine st-ok">
+                <header><h3>Torno CNC #01</h3><span class="state">Operando</span></header>
+                <dl>
+                  <div><dt>Produção</dt><dd class="mono">1.312 pç</dd></div>
+                  <div><dt>Ritmo</dt><dd class="mono">4,3 pç/min</dd></div>
+                  <div><dt>Eficiência</dt><dd class="mono">92%</dd></div>
+                </dl>
+                <p class="machine-foot">Usinagem · Operador: R. Almeida</p>
+              </article>
+
+              <article class="machine st-ok">
+                <header><h3>Torno CNC #02</h3><span class="state">Operando</span></header>
+                <dl>
+                  <div><dt>Produção</dt><dd class="mono">1.198 pç</dd></div>
+                  <div><dt>Ritmo</dt><dd class="mono">4,0 pç/min</dd></div>
+                  <div><dt>Eficiência</dt><dd class="mono">89%</dd></div>
+                </dl>
+                <p class="machine-foot">Usinagem · Operador: M. Souza</p>
+              </article>
+
+              <article class="machine st-ok">
+                <header><h3>Torno CNC #03</h3><span class="state">Operando</span></header>
+                <dl>
+                  <div><dt>Produção</dt><dd class="mono">1.247 pç</dd></div>
+                  <div><dt>Ritmo</dt><dd class="mono">4,2 pç/min</dd></div>
+                  <div><dt>Eficiência</dt><dd class="mono">90%</dd></div>
+                </dl>
+                <p class="machine-foot">Usinagem · Operador: J. Carvalho</p>
+              </article>
+
+              <article class="machine st-warn">
+                <header><h3>Fresadora #01</h3><span class="state">Atenção</span></header>
+                <dl>
+                  <div><dt>Produção</dt><dd class="mono">642 pç</dd></div>
+                  <div><dt>Ritmo</dt><dd class="mono">2,1 pç/min</dd></div>
+                  <div><dt>Eficiência</dt><dd class="mono">74%</dd></div>
+                </dl>
+                <p class="machine-foot">Usinagem · Refugo acima do limite</p>
+              </article>
+
+              <article class="machine st-danger">
+                <header><h3>Prensa hidráulica #02</h3><span class="state">Parada</span></header>
+                <dl>
+                  <div><dt>Parada há</dt><dd class="mono">00:42</dd></div>
+                  <div><dt>Motivo</dt><dd>Quebra de ferramenta</dd></div>
+                  <div><dt>Eficiência</dt><dd class="mono">61%</dd></div>
+                </dl>
+                <p class="machine-foot">Estamparia · Manutenção acionada</p>
+              </article>
+
+              <article class="machine st-ok">
+                <header><h3>Prensa hidráulica #01</h3><span class="state">Operando</span></header>
+                <dl>
+                  <div><dt>Produção</dt><dd class="mono">1.020 pç</dd></div>
+                  <div><dt>Ritmo</dt><dd class="mono">3,4 pç/min</dd></div>
+                  <div><dt>Eficiência</dt><dd class="mono">88%</dd></div>
+                </dl>
+                <p class="machine-foot">Estamparia · Operador: A. Lima</p>
+              </article>
+
+              <article class="machine st-maint">
+                <header><h3>Célula de solda #02</h3><span class="state">Manutenção</span></header>
+                <dl>
+                  <div><dt>Início</dt><dd class="mono">11:30</dd></div>
+                  <div><dt>Previsão</dt><dd class="mono">16:00</dd></div>
+                  <div><dt>Tipo</dt><dd>Preventiva</dd></div>
+                </dl>
+                <p class="machine-foot">Solda · OS #4521</p>
+              </article>
+
+              <article class="machine st-off">
+                <header><h3>Dobradeira #03</h3><span class="state">Inativa</span></header>
+                <dl>
+                  <div><dt>Produção</dt><dd class="mono">—</dd></div>
+                  <div><dt>Ritmo</dt><dd class="mono">—</dd></div>
+                  <div><dt>Eficiência</dt><dd class="mono">—</dd></div>
+                </dl>
+                <p class="machine-foot">Montagem · Sem programação</p>
+              </article>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="t-setores">
+            <header class="panel-head">
+              <h2 id="t-setores">Status dos setores</h2>
+            </header>
+            <ul class="sectors">
+              <li class="sector st-ok">
+                <div class="sector-head"><h3>Usinagem</h3><span class="state">Produzindo</span></div>
+                <div class="sector-body">
+                  <p class="mono">4.399 <small>/ 4.800 pç</small></p>
+                  <div class="progress"><span class="bar bar-ok w-92"></span></div>
+                  <p class="muted">4 máquinas · eficiência 91%</p>
+                </div>
+              </li>
+              <li class="sector st-warn">
+                <div class="sector-head"><h3>Estamparia</h3><span class="state">Atenção</span></div>
+                <div class="sector-body">
+                  <p class="mono">1.980 <small>/ 2.600 pç</small></p>
+                  <div class="progress"><span class="bar bar-warn w-76"></span></div>
+                  <p class="muted">2 máquinas · 1 parada · eficiência 78%</p>
+                </div>
+              </li>
+              <li class="sector st-ok">
+                <div class="sector-head"><h3>Solda</h3><span class="state">Produzindo</span></div>
+                <div class="sector-body">
+                  <p class="mono">1.315 <small>/ 1.600 pç</small></p>
+                  <div class="progress"><span class="bar bar-ok w-82"></span></div>
+                  <p class="muted">3 máquinas · 1 em manutenção · eficiência 86%</p>
+                </div>
+              </li>
+              <li class="sector st-ok">
+                <div class="sector-head"><h3>Montagem</h3><span class="state">Produzindo</span></div>
+                <div class="sector-body">
+                  <p class="mono">718 <small>/ 1.000 pç</small></p>
+                  <div class="progress"><span class="bar bar-ok w-72"></span></div>
+                  <p class="muted">3 máquinas · 1 inativa · eficiência 88%</p>
+                </div>
+              </li>
+            </ul>
+          </section>
+        </div>
+
+        <!-- LINHA: GRÁFICOS -->
+        <div class="row row-1-1">
+
+          <section class="panel" aria-labelledby="t-turno">
+            <header class="panel-head">
+              <h2 id="t-turno">Produção por turno</h2>
+              <p class="muted">Produzido vs. meta por turno</p>
+            </header>
+            <div class="chart-bars">
+              <div class="chart-group">
+                <div class="bars">
+                  <span class="cbar cbar-real h-88"></span>
+                  <span class="cbar cbar-meta h-100"></span>
+                </div>
+                <p class="mono">1º turno</p>
+                <small class="mono">3.210 / 3.600</small>
+              </div>
+              <div class="chart-group">
+                <div class="bars">
+                  <span class="cbar cbar-real h-79"></span>
+                  <span class="cbar cbar-meta h-100"></span>
+                </div>
+                <p class="mono">2º turno</p>
+                <small class="mono">2.890 / 3.600</small>
+              </div>
+              <div class="chart-group">
+                <div class="bars">
+                  <span class="cbar cbar-real h-82"></span>
+                  <span class="cbar cbar-meta h-100"></span>
+                </div>
+                <p class="mono">3º turno</p>
+                <small class="mono">2.312 / 2.800</small>
+              </div>
+            </div>
+            <ul class="legend legend-chart">
+              <li><span class="swatch swatch-real"></span>Produzido</li>
+              <li><span class="swatch swatch-meta"></span>Meta</li>
+            </ul>
+          </section>
+
+          <section class="panel" aria-labelledby="t-paradas">
+            <header class="panel-head">
+              <h2 id="t-paradas">Paradas por motivo</h2>
+              <p class="muted">Tempo acumulado hoje · <span class="mono">03:17 h</span></p>
+            </header>
+            <ol class="hbars">
+              <li>
+                <span class="hbar-label">Quebra de ferramenta</span>
+                <span class="hbar-track"><span class="hbar bar-danger w-100"></span></span>
+                <span class="mono hbar-val">01:12</span>
+              </li>
+              <li>
+                <span class="hbar-label">Setup / troca de produto</span>
+                <span class="hbar-track"><span class="hbar bar-info w-63"></span></span>
+                <span class="mono hbar-val">00:45</span>
+              </li>
+              <li>
+                <span class="hbar-label">Falta de material</span>
+                <span class="hbar-track"><span class="hbar bar-warn w-50"></span></span>
+                <span class="mono hbar-val">00:36</span>
+              </li>
+              <li>
+                <span class="hbar-label">Manutenção preventiva</span>
+                <span class="hbar-track"><span class="hbar bar-maint w-39"></span></span>
+                <span class="mono hbar-val">00:28</span>
+              </li>
+              <li>
+                <span class="hbar-label">Ajuste de qualidade</span>
+                <span class="hbar-track"><span class="hbar bar-off w-22"></span></span>
+                <span class="mono hbar-val">00:16</span>
+              </li>
+            </ol>
+          </section>
+        </div>
+
+        <!-- LINHA: TABELA DE PRODUÇÃO + OCORRÊNCIAS -->
+        <div class="row row-2-1">
+
+          <section class="panel" aria-labelledby="t-tabela">
+            <header class="panel-head">
+              <h2 id="t-tabela">Produção por máquina</h2>
+              <p class="muted">Turno atual · 2º turno</p>
+            </header>
+            <div class="table-wrap">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Máquina</th>
+                    <th>Setor</th>
+                    <th>Status</th>
+                    <th class="num">Produzido</th>
+                    <th class="num">Meta</th>
+                    <th class="num">Perdas</th>
+                    <th class="num">Parado</th>
+                    <th class="num">Eficiência</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Torno CNC #01</td><td>Usinagem</td>
+                    <td><span class="badge badge-ok">Operando</span></td>
+                    <td class="num mono">1.312</td><td class="num mono">1.500</td>
+                    <td class="num mono">18</td><td class="num mono">00:12</td>
+                    <td class="num mono val-ok">92%</td>
+                  </tr>
+                  <tr>
+                    <td>Torno CNC #02</td><td>Usinagem</td>
+                    <td><span class="badge badge-ok">Operando</span></td>
+                    <td class="num mono">1.198</td><td class="num mono">1.500</td>
+                    <td class="num mono">24</td><td class="num mono">00:18</td>
+                    <td class="num mono val-ok">89%</td>
+                  </tr>
+                  <tr>
+                    <td>Torno CNC #03</td><td>Usinagem</td>
+                    <td><span class="badge badge-ok">Operando</span></td>
+                    <td class="num mono">1.247</td><td class="num mono">1.500</td>
+                    <td class="num mono">38</td><td class="num mono">00:15</td>
+                    <td class="num mono val-ok">90%</td>
+                  </tr>
+                  <tr>
+                    <td>Fresadora #01</td><td>Usinagem</td>
+                    <td><span class="badge badge-warn">Atenção</span></td>
+                    <td class="num mono">642</td><td class="num mono">900</td>
+                    <td class="num mono val-danger">61</td><td class="num mono">00:26</td>
+                    <td class="num mono val-warn">74%</td>
+                  </tr>
+                  <tr>
+                    <td>Prensa hidráulica #01</td><td>Estamparia</td>
+                    <td><span class="badge badge-ok">Operando</span></td>
+                    <td class="num mono">1.020</td><td class="num mono">1.300</td>
+                    <td class="num mono">22</td><td class="num mono">00:10</td>
+                    <td class="num mono val-ok">88%</td>
+                  </tr>
+                  <tr>
+                    <td>Prensa hidráulica #02</td><td>Estamparia</td>
+                    <td><span class="badge badge-danger">Parada</span></td>
+                    <td class="num mono">960</td><td class="num mono">1.300</td>
+                    <td class="num mono val-danger">41</td><td class="num mono val-danger">01:12</td>
+                    <td class="num mono val-danger">61%</td>
+                  </tr>
+                  <tr>
+                    <td>Célula de solda #01</td><td>Solda</td>
+                    <td><span class="badge badge-ok">Operando</span></td>
+                    <td class="num mono">715</td><td class="num mono">800</td>
+                    <td class="num mono">9</td><td class="num mono">00:08</td>
+                    <td class="num mono val-ok">91%</td>
+                  </tr>
+                  <tr>
+                    <td>Célula de solda #02</td><td>Solda</td>
+                    <td><span class="badge badge-maint">Manutenção</span></td>
+                    <td class="num mono">600</td><td class="num mono">800</td>
+                    <td class="num mono">0</td><td class="num mono">00:28</td>
+                    <td class="num mono">—</td>
+                  </tr>
+                  <tr>
+                    <td>Dobradeira #03</td><td>Montagem</td>
+                    <td><span class="badge badge-off">Inativa</span></td>
+                    <td class="num mono">—</td><td class="num mono">—</td>
+                    <td class="num mono">—</td><td class="num mono">—</td>
+                    <td class="num mono">—</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="3">Total</td>
+                    <td class="num mono">7.694</td><td class="num mono">9.600</td>
+                    <td class="num mono">213</td><td class="num mono">03:17</td>
+                    <td class="num mono">80%</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+
+          <section class="panel" aria-labelledby="t-ocorrencias">
+            <header class="panel-head">
+              <h2 id="t-ocorrencias">Ocorrências recentes</h2>
+              <a href="#" class="link">Ver todas</a>
+            </header>
+            <ol class="events">
+              <li class="event ev-danger">
+                <time class="mono">14:08</time>
+                <div>
+                  <h3>Quebra de ferramenta</h3>
+                  <p>Prensa hidráulica #02 — substituição emergencial do inserto de corte após detecção de peça refugada.</p>
+                </div>
+              </li>
+              <li class="event ev-warn">
+                <time class="mono">13:55</time>
+                <div>
+                  <h3>Eficiência abaixo da meta</h3>
+                  <p>Setor de Estamparia atingiu 78% no turno. Supervisor notificado.</p>
+                </div>
+              </li>
+              <li class="event ev-warn">
+                <time class="mono">13:20</time>
+                <div>
+                  <h3>Refugo acima do limite</h3>
+                  <p>Fresadora #01 registrou 61 peças refugadas (6,8%). Ajuste de qualidade em andamento.</p>
+                </div>
+              </li>
+              <li class="event ev-info">
+                <time class="mono">12:40</time>
+                <div>
+                  <h3>Setup de produto</h3>
+                  <p>Torno CNC #03 — troca de dispositivo para novo lote, referência P-4521. Duração 00:45.</p>
+                </div>
+              </li>
+              <li class="event ev-maint">
+                <time class="mono">11:30</time>
+                <div>
+                  <h3>Manutenção preventiva</h3>
+                  <p>Célula de solda #02 — troca de bicos e lubrificação do eixo principal. OS #4521.</p>
+                </div>
+              </li>
+              <li class="event ev-ok">
+                <time class="mono">10:15</time>
+                <div>
+                  <h3>Retorno de operação</h3>
+                  <p>Torno CNC #02 voltou a produzir após falta de material (00:36 parado).</p>
+                </div>
+              </li>
+            </ol>
+          </section>
+        </div>
+
+      </main>
+
+      <!-- ===================== CONFIGURAÇÕES: USUÁRIOS ===================== -->
+      <main class="dashboard" id="view-usuarios" hidden>
+
+        <section class="panel" aria-labelledby="t-usuarios">
+          <header class="panel-head">
+            <h2 id="t-usuarios">Usuários</h2>
+            <button type="button" class="btn-primary" id="usuario-novo">Novo usuário</button>
+          </header>
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>Usuário</th>
+                  <th>Criado em</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="usuarios-lista"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="panel" id="usuario-form-panel" aria-labelledby="t-usuario-form" hidden>
+          <header class="panel-head">
+            <h2 id="t-usuario-form">Novo usuário</h2>
+          </header>
+
+          <form class="login-form" id="usuario-form" novalidate>
+
+            <div class="form-error" id="usuario-error" role="alert" hidden>
+              <span class="form-error-tag">Erro</span>
+              <p></p>
+            </div>
+
+            <div class="field">
+              <label for="u-nome">Nome</label>
+              <div class="input">
+                <input type="text" id="u-nome" name="nome" autocomplete="off" required>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="u-usuario">Usuário</label>
+              <div class="input">
+                <input type="text" id="u-usuario" name="usuario" autocomplete="off" required>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="u-senha">Senha</label>
+              <div class="input">
+                <input type="password" id="u-senha" name="senha" autocomplete="new-password">
+              </div>
+              <p class="field-hint" id="u-senha-hint">Mínimo de 6 caracteres.</p>
+            </div>
+
+            <button type="submit" class="btn-primary" id="usuario-submit">Salvar</button>
+            <button type="button" class="link" id="usuario-cancelar">Cancelar</button>
+          </form>
+        </section>
+
+      </main>
+
+      <footer class="foot">
+        <p>MachSense Production v2.1.0 · Para suporte contactar equipe de TI industrial.</p>
+      </footer>
+    </div>
+  </div>
+
+  <script src="storage.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

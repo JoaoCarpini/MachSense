@@ -1,0 +1,12 @@
+GRUPO: MachSense
+
+INTEGRANTES:
+- RA: 119284 - Nome: Joao Pedro Carpini
+- RA: 118763 - Nome: Guilherme Somera
+- RA: 118175 - Nome: Guilherme Massaro
+- RA: 114759 - Nome: Felippe Padovan
+- RA: 115401 - Nome: Felipe Alves
+- RA: 110128 - Nome: Antonio Neto
+
+Disciplina/PI: [MachSense / Projeto Interdisciplinar]
+Professor(a): [Marcelo]
