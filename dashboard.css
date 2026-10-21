@@ -1043,3 +1043,25 @@ input:focus {
 @media (max-width: 1100px) {
     .paradas-layout.com-detalhe { grid-template-columns: 1fr; }
 }
+
+/* ---------- Relatórios ---------- */
+
+.tabela-relatorio {
+    margin-top: 20px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.tabela-relatorio a:hover {
+    color: var(--cyan);
+}
+
+.texto-fraco {
+    margin-left: 4px;
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.kpis + .panel {
+    margin-top: 0;
+}

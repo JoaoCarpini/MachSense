@@ -62,7 +62,8 @@ function desenharGrafico(container) {
     const dados = JSON.parse(container.dataset.grafico);
     const NS = 'http://www.w3.org/2000/svg';
 
-    const L = 640, A = 230;
+    // largura do desenho = largura real do container, para o texto não escalar
+    const L = Math.max(320, Math.round(container.clientWidth) || 640), A = 230;
     const esq = 40, dir = 14, topo = 12, base = 28;
     const largura = L - esq - dir;
     const altura = A - topo - base;
@@ -121,14 +122,14 @@ function desenharGrafico(container) {
         });
         trechos.forEach(function (pontos) {
             if (pontos.length > 1) {
-                criar('polyline', { points: pontos.join(' '), class: 'line serie-' + s }, svg);
+                criar('polyline', { points: pontos.join(' '), class: 'line serie-' + (s % 6) }, svg);
             }
         });
 
         serie.valores.forEach(function (v, i) {
             if (v === null) return;
 
-            const ponto = criar('circle', { cx: x(i), cy: y(v), r: 3.5, class: 'ponto serie-' + s }, svg);
+            const ponto = criar('circle', { cx: x(i), cy: y(v), r: 3.5, class: 'ponto serie-' + (s % 6) }, svg);
 
             ponto.addEventListener('mouseenter', function () {
                 tooltip.textContent = '';
