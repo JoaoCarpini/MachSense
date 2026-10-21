@@ -686,3 +686,128 @@ ul {
 @media (max-width: 620px) {
     .cards-maquinas { grid-template-columns: 1fr; }
 }
+
+/* ---------- Detalhe da máquina ---------- */
+
+.detalhe-topo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    margin-bottom: 18px;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.migalha {
+    color: var(--muted-2);
+}
+
+.migalha:hover {
+    color: var(--text);
+}
+
+.migalha-sep {
+    color: var(--muted);
+}
+
+.migalha-atual {
+    margin-right: 6px;
+    color: var(--cyan);
+}
+
+.detalhe-atualizacao {
+    margin-left: auto;
+    color: var(--muted);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10px;
+}
+
+.row-gap {
+    margin-top: 14px;
+}
+
+.indicadores {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    font-size: 12px;
+}
+
+.indicadores div {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.indicadores dt {
+    color: var(--muted-2);
+}
+
+.indicadores dd {
+    font-weight: 700;
+    text-align: right;
+}
+
+/* ---------- Linha do tempo (histórico de paradas) ---------- */
+
+.timeline {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+}
+
+.timeline li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 78px 1fr;
+    gap: 16px;
+    padding-bottom: 14px;
+}
+
+/* bolinha e traço vertical entre a data e o texto */
+.timeline li::before {
+    content: "";
+    position: absolute;
+    left: 86px;
+    top: 3px;
+    width: 7px;
+    height: 7px;
+    border: 2px solid var(--cyan);
+    border-radius: 50%;
+    background-color: var(--surface);
+}
+
+.timeline li:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 91px;
+    top: 15px;
+    bottom: 0;
+    width: 1px;
+    background-color: var(--border);
+}
+
+.timeline time {
+    color: var(--cyan);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 10px;
+}
+
+.timeline div {
+    padding-left: 12px;
+}
+
+.timeline strong {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.timeline p {
+    margin-top: 3px;
+    color: var(--muted-2);
+    font-size: 11px;
+}
