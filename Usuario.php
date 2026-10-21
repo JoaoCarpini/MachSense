@@ -52,6 +52,29 @@ class Usuario
         return $usuario ?: null;
     }
 
+    public static function buscarPorId(int $id): ?array
+    {
+        global $pdo;
+
+        $stmt = $pdo->prepare('SELECT * FROM usuarios WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $id]);
+        $usuario = $stmt->fetch();
+
+        return $usuario ?: null;
+    }
+
+    public static function alterarSenha(int $id, string $senhaTextoPuro): bool
+    {
+        global $pdo;
+
+        $stmt = $pdo->prepare('UPDATE usuarios SET senha = :senha WHERE id = :id');
+
+        return $stmt->execute([
+            ':senha' => password_hash($senhaTextoPuro, PASSWORD_BCRYPT),
+            ':id'    => $id,
+        ]);
+    }
+
     public static function autenticar(string $login, string $senhaTextoPuro): ?array
     {
         $usuario = self::buscarPorUsuario($login);

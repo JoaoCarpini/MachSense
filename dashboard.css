@@ -1065,3 +1065,209 @@ input:focus {
 .kpis + .panel {
     margin-top: 0;
 }
+
+/* ---------- Configurações ---------- */
+
+.config-layout {
+    display: grid;
+    grid-template-columns: 170px 1fr;
+    gap: 18px;
+    align-items: start;
+}
+
+.abas {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.aba {
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--muted-2);
+    font-size: 13px;
+}
+
+.aba:hover {
+    color: var(--text);
+}
+
+.aba.is-active {
+    color: var(--text);
+    background-color: var(--surface);
+    border-color: rgba(34, 211, 238, 0.5);
+}
+
+.aba-desabilitada,
+.aba-desabilitada:hover {
+    color: var(--muted);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.aba-desabilitada small {
+    display: block;
+    font-size: 9px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.config-conteudo {
+    min-width: 0;
+}
+
+.alerta {
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    border: 1px solid;
+    border-radius: 8px;
+    font-size: 12px;
+}
+
+.alerta-ok { color: var(--good); border-color: rgba(52, 211, 153, 0.5); background-color: rgba(52, 211, 153, 0.08); }
+.alerta-erro { color: var(--danger); border-color: rgba(239, 68, 68, 0.5); background-color: rgba(239, 68, 68, 0.08); }
+
+.campo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.form-acoes {
+    grid-column: 1 / -1;
+}
+
+.form-linha {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.campo-largo {
+    flex: 1 1 220px;
+}
+
+.form-linha input[type="number"],
+.maq-meta input[type="number"] {
+    width: 100px;
+}
+
+.lista-maquinas {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.maq-linha {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    align-items: center;
+    gap: 24px;
+    padding: 14px 16px;
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.maq-linha.is-inativa .maq-info {
+    opacity: 0.55;
+}
+
+.maq-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.maq-info strong {
+    font-size: 13px;
+    overflow-wrap: anywhere;
+}
+
+.maq-info small {
+    color: var(--muted);
+    font-size: 10px;
+}
+
+.maq-codigo {
+    color: var(--cyan);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.maq-meta {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.maq-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+/* Botão com aparência de interruptor (liga/desliga) */
+.switch {
+    position: relative;
+    width: 34px;
+    height: 18px;
+    border: none;
+    border-radius: 999px;
+    background-color: var(--border);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.switch::after {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: var(--muted-2);
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.switch.is-on {
+    background-color: var(--cyan);
+}
+
+.switch.is-on::after {
+    transform: translateX(16px);
+    background-color: #04121a;
+}
+
+.switch:focus-visible {
+    outline: 2px solid var(--cyan);
+    outline-offset: 2px;
+}
+
+@media (max-width: 800px) {
+    .config-layout { grid-template-columns: 1fr; }
+    .abas { flex-direction: row; flex-wrap: wrap; }
+    .form-grid { grid-template-columns: 1fr; }
+    .maq-linha { grid-template-columns: 1fr auto; }
+    .maq-info { grid-column: 1 / -1; }
+}
