@@ -2,69 +2,41 @@
 
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/includes/funcoes.php';
 
 /* ------------------------------------------------------------------
- * DADOS DAS VIEWS
+ * DADOS DAS VIEWS (somente máquinas ativas)
  * ------------------------------------------------------------------ */
 
 $stmt = $pdo->prepare(
-    'SELECT maquina, meta_pct, tempo_produzindo_min, tempo_parado_min,
-            tempo_total_min, disponibilidade_pct, atingiu_meta
-       FROM vw_indicadores_maquina
-      ORDER BY maquina'
+    'SELECT v.maquina, v.meta_pct, v.total_pulsos, v.tempo_produzindo_min, v.tempo_parado_min,
+            v.tempo_total_min, v.disponibilidade_pct, v.atingiu_meta
+       FROM vw_indicadores_maquina v
+       JOIN maquinas m ON m.id = v.machine_id
+      WHERE m.ativa = 1
+      ORDER BY v.maquina'
 );
 $stmt->execute();
 $maquinas = $stmt->fetchAll();
 
 $stmt = $pdo->prepare(
-    'SELECT motivo, SUM(tempo_parado_min) AS tempo_parado_min
-       FROM vw_paradas_por_motivo
-      GROUP BY motivo
-      ORDER BY tempo_parado_min DESC, motivo'
+    'SELECT v.motivo, SUM(v.tempo_parado_min) AS tempo_parado_min
+       FROM vw_paradas_por_motivo v
+       JOIN maquinas m ON m.id = v.machine_id
+      WHERE m.ativa = 1
+      GROUP BY v.motivo
+      ORDER BY tempo_parado_min DESC, v.motivo'
 );
 $stmt->execute();
 $paradasPorMotivo = $stmt->fetchAll();
 
-/* ------------------------------------------------------------------
- * FUNÇÕES AUXILIARES
- * ------------------------------------------------------------------ */
-
-function formatarMinutos(int $minutos): string
-{
-    return sprintf('%02d:%02dh', intdiv($minutos, 60), $minutos % 60);
-}
-
-function formatarPct(?float $pct): string
-{
-    return $pct === null ? '—' : number_format($pct, 1, ',', '.') . '%';
-}
-
-/** Os motivos são gravados como identificadores (ex.: furo_processo). */
-function nomeMotivo(string $motivo): string
-{
-    $nomes = [
-        'almoco'        => 'Almoço',
-        'furo_processo' => 'Furo de processo',
-        'manutencao'    => 'Manutenção',
-        'setup'         => 'Setup',
-    ];
-
-    return $nomes[$motivo] ?? ucfirst(str_replace('_', ' ', $motivo));
-}
-
-/** Cor da barra de disponibilidade em relação à meta da máquina. */
-function classeDisponibilidade(?float $pct, float $meta): string
-{
-    if ($pct === null) return 'danger';
-    if ($pct >= $meta) return 'ok';
-    if ($pct >= $meta - 15) return 'warn';
-    return 'danger';
-}
+$porHora = disponibilidadePorHora($pdo);
 
 /* ------------------------------------------------------------------
  * INDICADORES GERAIS
  * ------------------------------------------------------------------ */
 
+$totalPulsos = 0;
 $totalProduzindo = 0;
 $totalParado = 0;
 $totalMinutos = 0;
@@ -72,6 +44,7 @@ $somaMetas = 0.0;
 $maquinasNaMeta = 0;
 
 foreach ($maquinas as $m) {
+    $totalPulsos += (int) $m['total_pulsos'];
     $totalProduzindo += (int) $m['tempo_produzindo_min'];
     $totalParado += (int) $m['tempo_parado_min'];
     $totalMinutos += (int) $m['tempo_total_min'];
@@ -82,8 +55,15 @@ foreach ($maquinas as $m) {
 $qtdMaquinas = count($maquinas);
 $metaMedia = $qtdMaquinas > 0 ? $somaMetas / $qtdMaquinas : 0;
 $disponibilidadeGeral = $totalMinutos > 0 ? 100 * $totalProduzindo / $totalMinutos : null;
+$semPulsos = $totalPulsos === 0;
 
 $kpis = [
+    [
+        'titulo' => 'Disponibilidade geral',
+        'tag'    => 'Máquinas ativas',
+        'valor'  => formatarPct($disponibilidadeGeral),
+        'cor'    => $disponibilidadeGeral !== null && $disponibilidadeGeral >= $metaMedia ? 'ok' : 'warn',
+    ],
     [
         'titulo' => 'Tempo produzindo',
         'tag'    => 'Acumulado',
@@ -97,23 +77,23 @@ $kpis = [
         'cor'    => 'warn',
     ],
     [
-        'titulo' => 'Disponibilidade',
-        'tag'    => 'Todas as máquinas',
-        'valor'  => formatarPct($disponibilidadeGeral),
-        'cor'    => $disponibilidadeGeral !== null && $disponibilidadeGeral >= $metaMedia ? 'ok' : 'warn',
-    ],
-    [
-        'titulo' => 'Máquinas na meta',
+        'titulo' => 'Metas atingidas',
         'tag'    => 'Disponibilidade',
         'valor'  => "$maquinasNaMeta de $qtdMaquinas",
         'cor'    => $qtdMaquinas > 0 && $maquinasNaMeta === $qtdMaquinas ? 'ok' : 'warn',
     ],
 ];
 
+$grafico = [
+    'rotulos' => $porHora['rotulos'],
+    'series'  => [['nome' => 'Disponibilidade', 'valores' => $porHora['valores']]],
+    'meta'    => $qtdMaquinas > 0 ? round($metaMedia, 1) : null,
+];
+
 $maiorParada = max(array_merge([1], array_map(fn($p) => (int) $p['tempo_parado_min'], $paradasPorMotivo)));
 
 $tituloPagina = 'Dashboard de Produção';
-$subtituloPagina = 'Visão geral de produção em tempo real das máquinas da planta';
+$subtituloPagina = 'Visão geral de produção das máquinas da planta';
 $paginaAtiva = 'dashboard';
 
 require __DIR__ . '/includes/layout_inicio.php';
@@ -136,15 +116,84 @@ require __DIR__ . '/includes/layout_inicio.php';
 
         <div class="row">
 
-            <!-- Tempo parado por motivo -->
-            <section class="panel" aria-labelledby="t-paradas">
+            <!-- Disponibilidade por hora -->
+            <section class="panel" aria-labelledby="t-hora">
                 <header class="panel-head">
                     <div>
-                        <h2 id="t-paradas">Tempo Parado por Motivo</h2>
-                        <p>Soma de todas as máquinas</p>
+                        <h2 id="t-hora">Disponibilidade por Hora</h2>
+                        <p>
+                            <?php if ($porHora['dia']): ?>
+                                Dia do último pulso registrado: <?= e(date('d/m/Y', strtotime($porHora['dia']))) ?>
+                            <?php else: ?>
+                                Tempo produzindo em relação ao tempo total, hora a hora
+                            <?php endif; ?>
+                        </p>
+                    </div>
+                    <?php if (!$semPulsos): ?>
+                        <div class="legends">
+                            <span class="legend"><span class="swatch"></span>Disponibilidade</span>
+                            <span class="legend"><span class="swatch swatch-meta"></span>Meta média</span>
+                        </div>
+                    <?php endif; ?>
+                </header>
+
+                <?php if ($semPulsos): ?>
+                    <p class="empty"><strong>Nenhum pulso registrado ainda.</strong>
+                        O gráfico aparece assim que as máquinas começarem a enviar dados.</p>
+                <?php else: ?>
+                    <div class="chart" data-grafico="<?= e(json_encode($grafico)) ?>"
+                         data-titulo="Disponibilidade por hora"></div>
+                <?php endif; ?>
+            </section>
+
+            <!-- Disponibilidade vs. meta por máquina -->
+            <section class="panel" aria-labelledby="t-meta">
+                <header class="panel-head">
+                    <div>
+                        <h2 id="t-meta">Disponibilidade vs. Meta</h2>
+                        <p>Desempenho de cada máquina ativa (o traço marca a meta)</p>
                     </div>
                 </header>
 
+                <?php if ($qtdMaquinas === 0): ?>
+                    <p class="empty"><strong>Nenhuma máquina ativa.</strong>
+                        Cadastre ou ative máquinas em <a href="configuracoes.php?aba=maquinas">Configurações</a>.</p>
+                <?php else: ?>
+                    <ul class="metas">
+                        <?php foreach ($maquinas as $m):
+                            $pct = $m['disponibilidade_pct'] === null ? null : (float) $m['disponibilidade_pct'];
+                            $meta = (float) $m['meta_pct'];
+                            $largura = (int) round(min($pct ?? 0, 100)); ?>
+                            <li>
+                                <div class="meta-top">
+                                    <span><?= e($m['maquina']) ?> <small>(meta <?= e(formatarPct($meta)) ?>)</small></span>
+                                    <strong><?= e($pct === null ? 'Sem dados' : formatarPct($pct)) ?></strong>
+                                </div>
+                                <div class="progress" role="progressbar" aria-valuenow="<?= $largura ?>" aria-valuemin="0" aria-valuemax="100">
+                                    <span class="bar bar-<?= classeDisponibilidade($pct, $meta) ?>" style="width: <?= $largura ?>%"></span>
+                                    <span class="meta-mark" style="left: <?= (int) round($meta) ?>%"></span>
+                                </div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </section>
+
+        </div>
+
+        <!-- Tempo parado por motivo -->
+        <section class="panel panel-gap" aria-labelledby="t-paradas">
+            <header class="panel-head">
+                <div>
+                    <h2 id="t-paradas">Tempo Parado por Motivo</h2>
+                    <p>Soma das máquinas ativas</p>
+                </div>
+                <a href="paradas.php" class="link-mais">Ver paradas →</a>
+            </header>
+
+            <?php if ($semPulsos): ?>
+                <p class="empty"><strong>Sem paradas registradas.</strong></p>
+            <?php else: ?>
                 <ul class="metas">
                     <?php foreach ($paradasPorMotivo as $p):
                         $minutos = (int) $p['tempo_parado_min'];
@@ -160,35 +209,7 @@ require __DIR__ . '/includes/layout_inicio.php';
                         </li>
                     <?php endforeach; ?>
                 </ul>
-            </section>
-
-            <!-- Disponibilidade por máquina -->
-            <section class="panel" aria-labelledby="t-meta">
-                <header class="panel-head">
-                    <div>
-                        <h2 id="t-meta">Disponibilidade por Máquina</h2>
-                        <p>Tempo produzindo em relação ao tempo total, comparado à meta</p>
-                    </div>
-                </header>
-
-                <ul class="metas">
-                    <?php foreach ($maquinas as $m):
-                        $pct = $m['disponibilidade_pct'] === null ? null : (float) $m['disponibilidade_pct'];
-                        $meta = (float) $m['meta_pct'];
-                        $largura = (int) round(min($pct ?? 0, 100)); ?>
-                        <li>
-                            <div class="meta-top">
-                                <span><?= e($m['maquina']) ?> <small>(meta <?= e(formatarPct($meta)) ?>)</small></span>
-                                <strong><?= e($pct === null ? 'Sem dados' : formatarPct($pct)) ?></strong>
-                            </div>
-                            <div class="progress" role="progressbar" aria-valuenow="<?= $largura ?>" aria-valuemin="0" aria-valuemax="100">
-                                <span class="bar bar-<?= classeDisponibilidade($pct, $meta) ?>" style="width: <?= $largura ?>%"></span>
-                            </div>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            </section>
-
-        </div>
+            <?php endif; ?>
+        </section>
 
 <?php require __DIR__ . '/includes/layout_fim.php'; ?>

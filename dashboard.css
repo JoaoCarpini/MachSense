@@ -105,12 +105,21 @@ ul {
 }
 
 .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
     padding: 10px 12px;
     border: 1px solid transparent;
     border-radius: 8px;
     color: var(--muted-2);
     font-size: 13px;
     transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.nav-link svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
 }
 
 .nav-link:hover {
@@ -330,6 +339,22 @@ ul {
     margin-bottom: 16px;
 }
 
+.panel-gap {
+    margin-top: 14px;
+}
+
+.link-mais {
+    color: var(--cyan);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.link-mais:hover {
+    text-decoration: underline;
+}
+
 .panel h2 {
     font-size: 14px;
     font-weight: 700;
@@ -396,16 +421,66 @@ ul {
     stroke-linecap: round;
 }
 
-.chart .ponto circle {
+.chart .ponto {
     fill: var(--surface);
     stroke: var(--cyan);
     stroke-width: 2;
-    opacity: 0;
-    transition: opacity 0.1s ease;
+    cursor: pointer;
+    transition: r 0.1s ease;
 }
 
-.chart .ponto.is-active circle {
-    opacity: 1;
+.chart .ponto.is-active {
+    r: 6;
+}
+
+/* Cores das séries (gráficos com mais de uma máquina) */
+.chart .serie-1 { stroke: var(--warn); }
+.chart .serie-2 { stroke: var(--good); }
+.chart .serie-3 { stroke: #a78bfa; }
+.chart .serie-4 { stroke: #f472b6; }
+.chart .serie-5 { stroke: #60a5fa; }
+
+.swatch.serie-1 { background-color: var(--warn); }
+.swatch.serie-2 { background-color: var(--good); }
+.swatch.serie-3 { background-color: #a78bfa; }
+.swatch.serie-4 { background-color: #f472b6; }
+.swatch.serie-5 { background-color: #60a5fa; }
+
+.legends {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+}
+
+.swatch-meta {
+    height: 0;
+    border-top: 2px dashed var(--warn);
+    border-radius: 0;
+    background: none;
+    opacity: 0.7;
+}
+
+/* ---------- Estado vazio ---------- */
+
+.empty {
+    padding: 28px 16px;
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    color: var(--muted-2);
+    font-size: 12px;
+    text-align: center;
+    line-height: 1.6;
+}
+
+.empty strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--text);
+    font-size: 13px;
+}
+
+.empty a {
+    color: var(--cyan);
 }
 
 .tooltip {
@@ -465,10 +540,27 @@ ul {
 }
 
 .progress {
+    position: relative;
     height: 5px;
     border-radius: 3px;
     background-color: var(--surface-2);
     overflow: hidden;
+}
+
+/* Traço vertical indicando a meta dentro da barra */
+.progress .meta-mark {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background-color: var(--text);
+    opacity: 0.6;
+}
+
+.meta-top small {
+    color: var(--muted);
+    font-size: 10px;
 }
 
 .bar {

@@ -2,12 +2,18 @@
 
 date_default_timezone_set('America/Sao_Paulo');
 
+// O ícone é o conteúdo interno de um <svg> 24x24 com traço
 $itensMenu = [
-    'dashboard' => ['label' => 'Dashboard', 'href' => 'dashboard.php'],
-    'maquinas' => ['label' => 'Máquinas', 'href' => 'maquinas.php'],
-    'paradas' => ['label' => 'Paradas', 'href' => 'paradas.php'],
-    'relatorios' => ['label' => 'Relatórios', 'href' => 'relatorios.php'],
-    'configuracoes' => ['label' => 'Configurações', 'href' => 'configuracoes.php'],
+    'dashboard' => ['label' => 'Dashboard', 'href' => 'dashboard.php',
+        'icone' => '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>'],
+    'maquinas' => ['label' => 'Máquinas', 'href' => 'maquinas.php',
+        'icone' => '<rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/>'],
+    'paradas' => ['label' => 'Paradas', 'href' => 'paradas.php',
+        'icone' => '<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>'],
+    'relatorios' => ['label' => 'Relatórios', 'href' => 'relatorios.php',
+        'icone' => '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 17v-3M12 17v-6M16 17v-2"/>'],
+    'configuracoes' => ['label' => 'Configurações', 'href' => 'configuracoes.php',
+        'icone' => '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'],
 ];
 
 ?>
@@ -41,7 +47,10 @@ $itensMenu = [
             <?php foreach ($itensMenu as $chave => $item): ?>
                 <a href="<?= e($item['href']) ?>"
                    class="nav-link<?= ($paginaAtiva ?? '') === $chave ? ' is-active' : '' ?>"
-                   <?= ($paginaAtiva ?? '') === $chave ? 'aria-current="page"' : '' ?>><?= e($item['label']) ?></a>
+                   <?= ($paginaAtiva ?? '') === $chave ? 'aria-current="page"' : '' ?>>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $item['icone'] ?></svg>
+                    <?= e($item['label']) ?>
+                </a>
             <?php endforeach; ?>
         </nav>
 
