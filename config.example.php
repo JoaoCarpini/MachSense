@@ -1,9 +1,12 @@
 <?php
 
+// Copie este arquivo para config.local.php (já ignorado pelo Git) e
+// ajuste os dados de acordo com o seu ambiente XAMPP.
+
 return [
     'host' => 'localhost',
-    'port' => '5432',
+    'port' => '3306',
     'dbname' => 'machsense',
-    'user' => 'admin',
-    'password' => 'admin',
+    'user' => 'root',
+    'password' => '',
 ];
