@@ -8,7 +8,49 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     document.querySelectorAll('[data-grafico]').forEach(desenharGrafico);
+
+    iniciarDetalheParadas();
 });
+
+/** Painel lateral (somente leitura) com os dados da linha clicada. */
+function iniciarDetalheParadas() {
+    const painel = document.getElementById('detalhe-parada');
+    if (!painel) {
+        return;
+    }
+
+    const linhas = document.querySelectorAll('.tabela-clicavel tbody tr');
+    const link = document.getElementById('detalhe-link-maquina');
+
+    function abrir(linha) {
+        linhas.forEach(function (l) { l.classList.remove('is-selected'); });
+        linha.classList.add('is-selected');
+
+        painel.querySelectorAll('[data-campo]').forEach(function (campo) {
+            campo.textContent = linha.dataset[campo.dataset.campo];
+        });
+        link.href = 'maquina.php?id=' + encodeURIComponent(linha.dataset.maquinaId);
+
+        painel.hidden = false;
+        painel.parentElement.classList.add('com-detalhe');
+    }
+
+    linhas.forEach(function (linha) {
+        linha.addEventListener('click', function () { abrir(linha); });
+        linha.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Enter' || ev.key === ' ') {
+                ev.preventDefault();
+                abrir(linha);
+            }
+        });
+    });
+
+    document.getElementById('fechar-detalhe').addEventListener('click', function () {
+        painel.hidden = true;
+        painel.parentElement.classList.remove('com-detalhe');
+        linhas.forEach(function (l) { l.classList.remove('is-selected'); });
+    });
+}
 
 /**
  * Desenha um gráfico de linha em SVG (eixo Y de 0 a 100%).
