@@ -1,22 +1,6 @@
 <?php
 
-session_start();
-
-// Só entra quem passou pelo login_process.php
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: index.php');
-    exit;
-}
-
-date_default_timezone_set('America/Sao_Paulo');
-
-$nomeUsuario = $_SESSION['usuario_nome'] ?? 'Usuário';
-
-// Iniciais para o avatar (até 2 palavras do nome)
-$iniciais = '';
-foreach (array_slice(preg_split('/\s+/', trim($nomeUsuario)), 0, 2) as $parte) {
-    $iniciais .= mb_strtoupper(mb_substr($parte, 0, 1));
-}
+require_once __DIR__ . '/includes/auth.php';
 
 /* ------------------------------------------------------------------
  * DADOS DE EXEMPLO
@@ -77,11 +61,6 @@ $maquinas = [
  * FUNÇÕES AUXILIARES
  * ------------------------------------------------------------------ */
 
-function e(string $texto): string
-{
-    return htmlspecialchars($texto, ENT_QUOTES, 'UTF-8');
-}
-
 /** Converte uma série de valores em pontos "x,y" para <polyline>. */
 function pontosSparkline(array $serie, int $largura = 120, int $altura = 40): string
 {
@@ -132,71 +111,12 @@ $linhaGrafico = implode(' ', array_map(fn($p) => "{$p['x']},{$p['y']}", $pontosG
 $yMetaLinha = round($padT + $areaH * (1 - $metaPorHora / $yMax), 1);
 $passoX = $areaW / ($n - 1);
 
+$tituloPagina = 'Dashboard de Produção';
+$subtituloPagina = 'Visão geral de produção em tempo real das máquinas da planta';
+$paginaAtiva = 'dashboard';
+
+require __DIR__ . '/includes/layout_inicio.php';
 ?>
-<!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MachSense — Dashboard de Produção</title>
-    <link rel="stylesheet" href="dashboard.css">
-</head>
-<body>
-
-<div class="app">
-
-    <!-- ============ MENU LATERAL ============ -->
-    <aside class="sidebar">
-        <div class="brand">
-            <span class="brand-mark" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 3v18h18"/><path d="M18.7 8 12 14.7 8.5 11.2 3 16.7"/>
-                </svg>
-            </span>
-            <div>
-                <strong>MachSense</strong>
-                <small>PRODUÇÃO INDUSTRIAL</small>
-            </div>
-        </div>
-
-        <nav class="nav" aria-label="Navegação principal">
-            <a href="dashboard.php" class="nav-link is-active" aria-current="page">Dashboard</a>
-            <a href="#" class="nav-link">Máquinas</a>
-            <a href="#" class="nav-link">Paradas</a>
-            <a href="#" class="nav-link">Relatórios</a>
-            <a href="#" class="nav-link">Configurações</a>
-        </nav>
-
-        <div class="sidebar-foot">
-            <p class="line-status"><span class="dot"></span>LINHA_PROD #01 : OK</p>
-            <div class="user">
-                <span class="avatar" aria-hidden="true"><?= e($iniciais) ?></span>
-                <div>
-                    <strong><?= e($nomeUsuario) ?></strong>
-                    <small>Supervisor de Produção</small>
-                </div>
-            </div>
-        </div>
-    </aside>
-
-    <!-- ============ ÁREA PRINCIPAL ============ -->
-    <main class="main">
-
-        <header class="topbar">
-            <div>
-                <h1>Dashboard de Produção</h1>
-                <p>Visão geral de produção em tempo real das máquinas da planta</p>
-            </div>
-            <div class="topbar-actions">
-                <span class="plant-time">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-                    PLANT_TIME: <span id="plant-time"><?= date('H:i:s') ?></span>
-                </span>
-                <a href="logout.php" class="btn-logout" title="Sair do sistema" aria-label="Sair do sistema">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/></svg>
-                </a>
-            </div>
-        </header>
 
         <!-- KPIs -->
         <section class="kpis" aria-label="Indicadores principais">
@@ -285,9 +205,5 @@ $passoX = $areaW / ($n - 1);
             </section>
 
         </div>
-    </main>
-</div>
 
-<script src="dashboard.js"></script>
-</body>
-</html>
+<?php require __DIR__ . '/includes/layout_fim.php'; ?>
