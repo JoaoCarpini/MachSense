@@ -71,5 +71,3 @@ Duas views fazem os cálculos que o dashboard usa: `vw_indicadores_maquina` (tem
 Dados sensíveis só por POST, validação no servidor, `htmlspecialchars` em tudo que volta para a tela, prepared statements em todas as consultas, `password_hash` para senhas, token CSRF nos formulários, cookies de sessão com `HttpOnly` e `SameSite=Strict`, e erros gravados em log em vez de aparecerem na tela.
 
 O repositório é público: senhas e dados de conexão reais não devem ser enviados ao Git.
-
-Demais integrantes: ________
