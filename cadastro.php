@@ -6,7 +6,7 @@ declare(strict_types=1);
  *
  * Fluxo: GET mostra o formulário; POST recebe, valida no servidor,
  * grava no MySQL com PDO + prepared statement e devolve a resposta na tela.
- * Depende de: includes/seguranca.php e db.php (que precisa definir $pdo).
+ * Depende de: includes/seguranca.php e conexao.php (que precisa definir $pdo).
  */
 
 require_once __DIR__ . '/includes/seguranca.php';
@@ -20,7 +20,7 @@ enviarCabecalhosSeguranca();
 // o usuário ver uma mensagem simples; o detalhe técnico vai só para o log.
 $falhaConexao = false;
 try {
-    require_once __DIR__ . '/db.php';
+    require_once __DIR__ . '/conexao.php';
 } catch (Throwable $ex) {
     error_log('cadastro.php (conexão): ' . $ex->getMessage());
     $falhaConexao = true;

@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/conexao.php';
 require_once __DIR__ . '/includes/funcoes.php';
 
 /* ------------------------------------------------------------------

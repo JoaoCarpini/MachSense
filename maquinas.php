@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/conexao.php';
 require_once __DIR__ . '/includes/funcoes.php';
 
 // Indicadores de cada máquina ativa + estado e motivo do ÚLTIMO pulso
@@ -27,9 +27,14 @@ $paginaAtiva = 'maquinas';
 require __DIR__ . '/includes/layout_inicio.php';
 ?>
 
+        <div class="toolbar">
+            <span class="contador"><?= count($maquinas) ?> máquina(s) ativa(s)</span>
+            <a href="maquinas_listar.php" class="btn btn-secundario">Gerenciar máquinas</a>
+        </div>
+
         <?php if (!$maquinas): ?>
             <p class="empty"><strong>Nenhuma máquina ativa.</strong>
-                Cadastre ou ative máquinas em <a href="configuracoes.php?aba=maquinas">Configurações</a>.</p>
+                Cadastre ou ative máquinas em <a href="maquinas_listar.php">Gerenciar máquinas</a>.</p>
         <?php else: ?>
             <section class="cards-maquinas" aria-label="Máquinas ativas">
                 <?php foreach ($maquinas as $m):

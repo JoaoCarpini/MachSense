@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/conexao.php';
 require_once __DIR__ . '/includes/funcoes.php';
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);

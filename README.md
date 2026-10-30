@@ -45,7 +45,14 @@ dashboard.css / .js  estilo e gráficos do painel
 cadastro.php         criar conta de usuário
 cadastro.css         estilo do cadastro
 Usuario.php          consultas de usuário
-db.php               conexão PDO
+conexao.php          conexão PDO (dados vêm de config.local.php)
+protect.php          exige login: sessão segura + redireciona para index.php
+maquinas_listar.php  CRUD de máquinas: lista (Read)
+maquinas_criar.php   CRUD de máquinas: cadastro (Create)
+maquinas_editar.php  CRUD de máquinas: edição (Update)
+maquinas_excluir.php CRUD de máquinas: exclusão com confirmação e transação (Delete)
+banco_de_dados.txt   scripts de criação do banco e das tabelas
+GRUPO.txt            integrantes do grupo (RA e nome)
 config.example.php   modelo de configuração (copiar para config.local.php)
 style.css            estilo do login
 includes/            funções de segurança e partes de layout compartilhadas

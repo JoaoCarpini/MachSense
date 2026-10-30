@@ -1,0 +1,9 @@
+GRUPO: MachSense
+
+INTEGRANTES:
+- RA: 110128 - Nome: Antonio Neto
+- RA: 115401 - Nome: Felipe Alves Pedro
+- RA: 114759 - Nome: Felippe Padovan
+- RA: 118175 - Nome: Guilherme Massaro
+- RA: 118763 - Nome: Guilherme Somera
+- RA: 119284 - Nome: João Pedro Carpini
