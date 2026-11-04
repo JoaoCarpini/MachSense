@@ -34,11 +34,11 @@ $intervalo = intervaloPulso($pdo);
 
 $stmt = $pdo->prepare(
     "SELECT m.id, m.nome, m.meta_disponibilidade, m.ativa,
-            COUNT(p.id)                          AS total_pulsos,
-            COALESCE(SUM(p.estado = 'rodando'), 0) AS pulsos_rodando,
-            COALESCE(SUM(p.estado = 'parado'), 0)  AS pulsos_parado
+            COALESCE(SUM(d.qtd_pulsos), 0)  AS total_pulsos,
+            COALESCE(SUM(d.qtd_rodando), 0) AS pulsos_rodando,
+            COALESCE(SUM(d.qtd_parado), 0)  AS pulsos_parado
        FROM maquinas m
-       LEFT JOIN pulsos p ON p.maquina_id = m.id AND p.`timestamp` >= :desde
+       LEFT JOIN vw_disponibilidade_diaria d ON d.maquina_id = m.id AND d.dia >= :desde
       GROUP BY m.id, m.nome, m.meta_disponibilidade, m.ativa
      HAVING m.ativa = 1 OR total_pulsos > 0
       ORDER BY m.nome"
@@ -115,14 +115,13 @@ $resumo = [
     ['titulo' => 'Máquinas na meta', 'valor' => $naMeta . ' de ' . count($comDados)],
 ];
 
-// Disponibilidade por dia de cada máquina
+// Disponibilidade por dia de cada máquina (vem da view vw_disponibilidade_diaria)
 $stmt = $pdo->prepare(
-    "SELECT p.maquina_id, DATE(p.`timestamp`) AS dia,
-            ROUND(100 * SUM(p.estado = 'rodando') / COUNT(*), 1) AS pct
-       FROM pulsos p
-      WHERE p.`timestamp` >= :desde
-      GROUP BY p.maquina_id, dia
-      ORDER BY dia"
+    "SELECT d.maquina_id, d.dia,
+            ROUND(100 * d.qtd_rodando / d.qtd_pulsos, 1) AS pct
+       FROM vw_disponibilidade_diaria d
+      WHERE d.dia >= :desde
+      ORDER BY d.dia"
 );
 $stmt->execute([':desde' => $desde]);
 

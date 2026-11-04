@@ -7,6 +7,10 @@ declare(strict_types=1);
  * Fluxo: GET mostra o formulário; POST recebe, valida no servidor,
  * grava no MySQL com PDO + prepared statement e devolve a resposta na tela.
  * Depende de: includes/seguranca.php e conexao.php (que precisa definir $pdo).
+ *
+ * ACESSO: só administrador logado. Sem login volta para o index.php; logado
+ * sem perfil 'admin' recebe 403. O perfil é conferido no banco a cada acesso
+ * (e não só na sessão), então rebaixar um usuário vale na hora.
  */
 
 require_once __DIR__ . '/includes/seguranca.php';
@@ -25,6 +29,47 @@ try {
     error_log('cadastro.php (conexão): ' . $ex->getMessage());
     $falhaConexao = true;
     http_response_code(503);
+}
+
+// ---- Controle de acesso: só administrador cria contas ----------------------
+if (empty($_SESSION['usuario_id'])) {
+    header('Location: index.php');
+    exit;
+}
+
+if (!$falhaConexao) {
+    try {
+        $stmtPerfil = $pdo->prepare('SELECT perfil FROM usuarios WHERE id = ? LIMIT 1');
+        $stmtPerfil->execute([(int) $_SESSION['usuario_id']]);
+        $perfilAtual = $stmtPerfil->fetchColumn();
+    } catch (PDOException $ex) {
+        error_log('cadastro.php (perfil): ' . $ex->getMessage());
+        $falhaConexao = true;
+        http_response_code(503);
+    }
+
+    if (!$falhaConexao && $perfilAtual !== 'admin') {
+        http_response_code(403);
+        ?><!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MachSense | Acesso restrito</title>
+    <link rel="stylesheet" href="cadastro.css">
+</head>
+<body>
+<main class="cartao">
+    <h1>Acesso restrito</h1>
+    <p class="sub">Somente administrador</p>
+    <div class="aviso aviso-erro" role="alert">Você não tem permissão para cadastrar usuários.</div>
+    <p class="rodape"><a href="dashboard.php">Voltar ao painel</a></p>
+</main>
+</body>
+</html>
+<?php
+        exit;
+    }
 }
 
 /**
@@ -198,7 +243,7 @@ $token = tokenCsrf();
 
     <?php if ($sucesso): ?>
         <div class="aviso aviso-ok" role="status">
-            Conta criada com sucesso. <a href="index.php">Entrar</a>
+            Conta criada com sucesso. <a href="dashboard.php">Voltar ao painel</a>
         </div>
     <?php endif; ?>
 
@@ -233,7 +278,7 @@ $token = tokenCsrf();
         <button type="submit">Criar conta</button>
     </form>
 
-    <p class="rodape"><a href="index.php">Já tenho conta</a></p>
+    <p class="rodape"><a href="dashboard.php">Voltar ao painel</a></p>
 </main>
 </body>
 </html>

@@ -136,6 +136,8 @@ function disponibilidadePorHora(PDO $pdo, ?int $maquinaId = null): array
  * anterior não era parada, tinha outro motivo ou ficou distante mais que
  * um intervalo de pulso.
  *
+ * A consulta em si está na view vw_periodos_parada.
+ *
  * Filtros aceitos: maquina_id, motivo_id, desde (Y-m-d H:i:s), limite.
  */
 function buscarPeriodosParada(PDO $pdo, array $filtros = []): array
@@ -159,47 +161,13 @@ function buscarPeriodosParada(PDO $pdo, array $filtros = []): array
     $where = $condicoes ? 'WHERE ' . implode(' AND ', $condicoes) : '';
     $limite = !empty($filtros['limite']) ? 'LIMIT ' . (int) $filtros['limite'] : '';
 
+    // A lógica dos períodos fica na view vw_periodos_parada (veja schema.sql).
     $stmt = $pdo->prepare(
-        "WITH intervalo AS (
-             SELECT CAST(valor AS UNSIGNED) AS minutos
-               FROM parametros
-              WHERE chave = 'intervalo_pulso_min'
-         ),
-         anteriores AS (
-             SELECT p.maquina_id, p.motivo_id, p.`timestamp`, p.estado,
-                    LAG(p.estado)      OVER (PARTITION BY p.maquina_id ORDER BY p.`timestamp`) AS estado_ant,
-                    LAG(p.motivo_id)   OVER (PARTITION BY p.maquina_id ORDER BY p.`timestamp`) AS motivo_ant,
-                    LAG(p.`timestamp`) OVER (PARTITION BY p.maquina_id ORDER BY p.`timestamp`) AS ts_ant
-               FROM pulsos p
-         ),
-         grupos AS (
-             SELECT a.*,
-                    SUM(CASE
-                            WHEN a.estado_ant = 'parado'
-                             AND a.motivo_ant = a.motivo_id
-                             AND TIMESTAMPDIFF(MINUTE, a.ts_ant, a.`timestamp`) <= i.minutos
-                            THEN 0 ELSE 1
-                        END) OVER (PARTITION BY a.maquina_id ORDER BY a.`timestamp`) AS grupo,
-                    i.minutos
-               FROM anteriores a
-              CROSS JOIN intervalo i
-              WHERE a.estado = 'parado'
-         ),
-         periodos AS (
-             SELECT maquina_id, motivo_id,
-                    MIN(`timestamp`)                                  AS inicio,
-                    MAX(`timestamp`) + INTERVAL MAX(minutos) MINUTE   AS fim,
-                    COUNT(*) * MAX(minutos)                           AS duracao_min
-               FROM grupos
-              GROUP BY maquina_id, grupo, motivo_id
-         )
-         SELECT per.maquina_id, m.nome AS maquina, per.motivo_id, mp.descricao AS motivo,
+        "SELECT per.maquina_id, per.maquina, per.motivo_id, per.motivo,
                 per.inicio, per.fim, per.duracao_min
-           FROM periodos per
-           JOIN maquinas m        ON m.id = per.maquina_id
-           JOIN motivos_parada mp ON mp.id = per.motivo_id
+           FROM vw_periodos_parada per
            $where
-          ORDER BY per.inicio DESC, m.nome
+          ORDER BY per.inicio DESC, per.maquina
           $limite"
     );
     $stmt->execute($params);

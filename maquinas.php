@@ -8,12 +8,11 @@ require_once __DIR__ . '/includes/funcoes.php';
 $stmt = $pdo->prepare(
     'SELECT v.machine_id, v.maquina, v.meta_pct, v.tempo_produzindo_min, v.tempo_parado_min,
             v.disponibilidade_pct, v.ultimo_pulso,
-            ult.estado AS estado_atual,
-            mp.descricao AS motivo_atual
+            ue.estado_atual,
+            ue.motivo_atual
        FROM vw_indicadores_maquina v
        JOIN maquinas m ON m.id = v.machine_id
-       LEFT JOIN pulsos ult ON ult.maquina_id = v.machine_id AND ult.`timestamp` = v.ultimo_pulso
-       LEFT JOIN motivos_parada mp ON mp.id = ult.motivo_id
+       LEFT JOIN vw_ultimo_estado_maquina ue ON ue.machine_id = v.machine_id
       WHERE m.ativa = 1
       ORDER BY v.maquina'
 );
