@@ -1,0 +1,343 @@
+/* estilo.css — tema escuro parecido com o do MachSense */
+
+:root {
+    --fundo: #05070d;
+    --cartao: #0d1420;
+    --borda: #1c2536;
+    --texto: #e6edf7;
+    --texto-fraco: #8a97ad;
+    --destaque: #22d3ee;
+    --erro: #f87171;
+    --sucesso: #34d399;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+/* O atributo hidden precisa vencer o "display" definido pelas classes */
+[hidden] {
+    display: none !important;
+}
+
+body {
+    margin: 0;
+    background-color: var(--fundo);
+    color: var(--texto);
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.pagina {
+    width: 100%;
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 20px 16px 40px;
+}
+
+/* ---------- Cabeçalho e cartões ---------- */
+
+.cabecalho h1 {
+    margin: 0 0 4px;
+    font-size: 1.6rem;
+}
+
+.cabecalho p {
+    margin: 0 0 20px;
+    color: var(--texto-fraco);
+    font-size: 0.85rem;
+}
+
+.cartao {
+    margin-bottom: 18px;
+    padding: 18px;
+    background-color: var(--cartao);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    min-width: 0;
+}
+
+.cartao h2 {
+    margin: 0 0 14px;
+    font-size: 1.05rem;
+}
+
+/* ---------- Mensagens ---------- */
+
+.mensagem {
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    border: 1px solid;
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.mensagem ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.mensagem-erro {
+    color: var(--erro);
+    border-color: rgba(248, 113, 113, 0.5);
+    background-color: rgba(248, 113, 113, 0.08);
+}
+
+.mensagem-ok {
+    color: var(--sucesso);
+    border-color: rgba(52, 211, 153, 0.5);
+    background-color: rgba(52, 211, 153, 0.08);
+}
+
+/* ---------- Formulário ---------- */
+
+.formulario {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.formulario.editando {
+    outline: 1px solid var(--destaque);
+    outline-offset: 8px;
+    border-radius: 6px;
+}
+
+.campo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+label,
+legend {
+    color: var(--texto-fraco);
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 0;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    background-color: var(--fundo);
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    color: var(--texto);
+    font-size: 1rem; /* 16px evita o zoom automático no celular */
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--destaque);
+}
+
+small {
+    color: var(--texto-fraco);
+    font-size: 0.75rem;
+}
+
+.opcoes {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 0;
+}
+
+.opcao {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 18px;
+    color: var(--texto);
+    font-size: 0.95rem;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+input[type="radio"] {
+    accent-color: var(--destaque);
+}
+
+.acoes-formulario {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* ---------- Botões ---------- */
+
+.botao {
+    padding: 10px 16px;
+    background-color: var(--cartao);
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    color: var(--texto);
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.botao:hover {
+    border-color: var(--texto-fraco);
+}
+
+.botao:focus-visible,
+input:focus-visible {
+    outline: 2px solid var(--destaque);
+    outline-offset: 2px;
+}
+
+.botao-primario {
+    background-color: var(--destaque);
+    border-color: var(--destaque);
+    color: #04121a;
+}
+
+.botao-primario:hover {
+    opacity: 0.88;
+    border-color: var(--destaque);
+}
+
+.botao-pequeno {
+    padding: 6px 10px;
+    font-size: 0.7rem;
+}
+
+.botao-perigo {
+    color: var(--erro);
+    border-color: rgba(248, 113, 113, 0.5);
+}
+
+.botao-perigo:hover {
+    background-color: var(--erro);
+    border-color: var(--erro);
+    color: #1a0505;
+}
+
+/* ---------- Tabela ---------- */
+
+.cabecalho-tabela {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 14px;
+}
+
+.cabecalho-tabela h2 {
+    margin: 0;
+}
+
+.contador {
+    color: var(--texto-fraco);
+    font-size: 0.8rem;
+}
+
+/* Só a tabela rola na horizontal; a página nunca */
+.tabela-rolagem {
+    overflow-x: auto;
+}
+
+.tabela {
+    width: 100%;
+    min-width: 420px;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.tabela th {
+    padding: 10px 12px;
+    background-color: var(--fundo);
+    color: var(--texto-fraco);
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    text-align: left;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.tabela td {
+    padding: 10px 12px;
+    border-top: 1px solid var(--borda);
+    vertical-align: middle;
+}
+
+/* Nomes longos quebram em vez de alargar a tabela */
+.col-nome {
+    overflow-wrap: anywhere;
+}
+
+.tabela .num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.tabela td.vazio {
+    padding: 28px 12px;
+    color: var(--texto-fraco);
+    text-align: center;
+}
+
+.acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.selo {
+    display: inline-block;
+    padding: 2px 10px;
+    border: 1px solid var(--borda);
+    border-radius: 999px;
+    color: var(--texto-fraco);
+    font-size: 0.75rem;
+}
+
+.selo-ok {
+    color: var(--sucesso);
+    border-color: rgba(52, 211, 153, 0.5);
+    background-color: rgba(52, 211, 153, 0.08);
+}
+
+/* ---------- Telas estreitas ---------- */
+
+@media (max-width: 600px) {
+    .formulario {
+        grid-template-columns: 1fr;
+    }
+
+    .cartao {
+        padding: 14px;
+    }
+
+    .cabecalho h1 {
+        font-size: 1.35rem;
+    }
+
+    /* Em telas estreitas a tabela se ajusta ao painel (o nome quebra de linha)
+       em vez de exigir rolagem; a rolagem interna fica só como reserva. */
+    .tabela {
+        min-width: 0;
+    }
+
+    .tabela th,
+    .tabela td {
+        padding: 8px 6px;
+    }
+
+    .acoes-formulario .botao {
+        flex: 1 1 100%;
+    }
+}
