@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/conexao.php';
 
 /**
  * Estrutura de cadastro do usuário do sistema MachSense.

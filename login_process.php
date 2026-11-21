@@ -15,9 +15,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $usuario = Usuario::autenticar($login, $senha);
 
         if ($usuario) {
+            // Novo ID de sessão no login (evita session fixation)
+            session_regenerate_id(true);
+
             $_SESSION['usuario_id'] = $usuario['id'];
             $_SESSION['usuario_nome'] = $usuario['nome'];
             $_SESSION['usuario_cargo'] = $usuario['cargo'] ?? null;
+            $_SESSION['usuario_perfil'] = $usuario['perfil'] ?? 'usuario';
 
             header('Location: dashboard.php');
             exit;

@@ -1271,3 +1271,76 @@ input:focus {
     .maq-linha { grid-template-columns: 1fr auto; }
     .maq-info { grid-column: 1 / -1; }
 }
+
+/* ---------- CRUD de máquinas (maquinas_*.php) ---------- */
+
+.btn-perigo {
+    background-color: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: var(--danger);
+}
+
+.btn-perigo:hover {
+    background-color: var(--danger);
+    color: #fff;
+}
+
+a.btn {
+    text-decoration: none;
+}
+
+.acoes-linha {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.form-inline {
+    display: inline;
+}
+
+.form-crud {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-width: 480px;
+}
+
+.form-crud .campo input[type="text"] {
+    width: 100%;
+}
+
+.campo-opcoes {
+    border: none;
+    padding: 0;
+}
+
+.campo-opcoes legend {
+    margin-bottom: 6px;
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.campo-opcoes label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 16px;
+    font-size: 12px;
+}
+
+.dica-campo,
+.erro-campo {
+    font-size: 11px;
+}
+
+.dica-campo {
+    color: var(--muted);
+}
+
+.erro-campo {
+    color: var(--danger);
+}

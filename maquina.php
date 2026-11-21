@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/conexao.php';
 require_once __DIR__ . '/includes/funcoes.php';
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
@@ -10,12 +10,11 @@ $maquina = null;
 if ($id) {
     $stmt = $pdo->prepare(
         'SELECT v.*, m.ativa,
-                ult.estado AS estado_atual,
-                mp.descricao AS motivo_atual
+                ue.estado_atual,
+                ue.motivo_atual
            FROM vw_indicadores_maquina v
            JOIN maquinas m ON m.id = v.machine_id
-           LEFT JOIN pulsos ult ON ult.maquina_id = v.machine_id AND ult.`timestamp` = v.ultimo_pulso
-           LEFT JOIN motivos_parada mp ON mp.id = ult.motivo_id
+           LEFT JOIN vw_ultimo_estado_maquina ue ON ue.machine_id = v.machine_id
           WHERE v.machine_id = :id'
     );
     $stmt->execute([':id' => $id]);

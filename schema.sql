@@ -1,11 +1,18 @@
+SET NAMES utf8mb4;
+
 CREATE TABLE IF NOT EXISTS usuarios (
     id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
     nome       VARCHAR(100) NOT NULL,
     usuario    VARCHAR(50)  NOT NULL UNIQUE,
     senha      VARCHAR(255) NOT NULL COMMENT 'Hash da senha gerado pelo PHP (password_hash com PASSWORD_BCRYPT), nunca a senha em texto puro',
     cargo      VARCHAR(80)  NULL,
+    perfil     ENUM('admin','usuario') NOT NULL DEFAULT 'usuario' COMMENT 'admin pode cadastrar novos usuários',
     criado_em  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Bancos criados antes da coluna perfil: acrescenta a coluna. Se ela já existe, o comando não faz nada.
+ALTER TABLE usuarios
+    ADD COLUMN IF NOT EXISTS perfil ENUM('admin','usuario') NOT NULL DEFAULT 'usuario' AFTER cargo;
 
 CREATE TABLE IF NOT EXISTS maquinas (
     id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -76,6 +83,81 @@ CROSS JOIN (SELECT CAST(valor AS UNSIGNED) AS minutos FROM parametros WHERE chav
 LEFT JOIN pulsos p ON p.maquina_id = m.id AND p.motivo_id = mp.id AND p.estado = 'parado'
 GROUP BY m.id, m.nome, mp.id, mp.descricao, i.minutos;
 
+-- ----------------------------------------------------------------------
+-- Views para relatórios e consultas (Select / SubSelect / Join)
+-- ----------------------------------------------------------------------
+
+-- Disponibilidade de cada máquina em cada dia (JOIN + GROUP BY).
+-- Usada por relatorios.php: totais do período e gráfico por dia.
+CREATE OR REPLACE VIEW vw_disponibilidade_diaria AS
+SELECT
+    m.id                                                  AS maquina_id,
+    m.nome                                                AS maquina,
+    m.meta_disponibilidade                                AS meta_pct,
+    m.ativa                                               AS ativa,
+    DATE(p.`timestamp`)                                   AS dia,
+    COUNT(*)                                              AS qtd_pulsos,
+    SUM(p.estado = 'rodando')                             AS qtd_rodando,
+    SUM(p.estado = 'parado')                              AS qtd_parado,
+    ROUND(100 * SUM(p.estado = 'rodando') / COUNT(*), 2)  AS disponibilidade_pct
+FROM pulsos p
+JOIN maquinas m ON m.id = p.maquina_id
+GROUP BY m.id, m.nome, m.meta_disponibilidade, m.ativa, DATE(p.`timestamp`);
+
+-- Estado atual de cada máquina: o ÚLTIMO pulso, achado com um SUBSELECT
+-- (MAX do timestamp da própria máquina), mais o motivo da parada (JOIN).
+-- Usada por maquinas.php e maquina.php.
+CREATE OR REPLACE VIEW vw_ultimo_estado_maquina AS
+SELECT
+    m.id            AS machine_id,
+    m.nome          AS maquina,
+    p.`timestamp`   AS ultimo_pulso,
+    p.estado        AS estado_atual,
+    mp.descricao    AS motivo_atual
+FROM maquinas m
+LEFT JOIN pulsos p
+       ON p.maquina_id = m.id
+      AND p.`timestamp` = (SELECT MAX(p2.`timestamp`) FROM pulsos p2 WHERE p2.maquina_id = m.id)
+LEFT JOIN motivos_parada mp ON mp.id = p.motivo_id;
+
+-- Períodos de parada: sequências de pulsos 'parado' seguidos da mesma máquina
+-- e do mesmo motivo. Três SUBSELECTS aninhados:
+--   1) a: para cada pulso, o estado/motivo/horário do pulso anterior (LAG);
+--   2) g: numera os grupos (um novo grupo começa quando o pulso anterior não
+--         era parada, tinha outro motivo ou ficou mais longe que um intervalo);
+--   3) per: agrupa e calcula início, fim e duração de cada período.
+-- Usada por paradas.php e maquina.php.
+CREATE OR REPLACE VIEW vw_periodos_parada AS
+SELECT per.maquina_id, m.nome AS maquina, per.motivo_id, mp.descricao AS motivo,
+       per.inicio, per.fim, per.duracao_min
+FROM (
+    SELECT g.maquina_id, g.motivo_id,
+           MIN(g.`timestamp`)                                AS inicio,
+           MAX(g.`timestamp`) + INTERVAL MAX(g.minutos) MINUTE AS fim,
+           COUNT(*) * MAX(g.minutos)                         AS duracao_min
+    FROM (
+        SELECT a.maquina_id, a.motivo_id, a.`timestamp`, i.minutos,
+               SUM(CASE
+                       WHEN a.estado_ant = 'parado'
+                        AND a.motivo_ant = a.motivo_id
+                        AND TIMESTAMPDIFF(MINUTE, a.ts_ant, a.`timestamp`) <= i.minutos
+                       THEN 0 ELSE 1
+                   END) OVER (PARTITION BY a.maquina_id ORDER BY a.`timestamp`) AS grupo
+        FROM (
+            SELECT p.maquina_id, p.motivo_id, p.`timestamp`, p.estado,
+                   LAG(p.estado)      OVER (PARTITION BY p.maquina_id ORDER BY p.`timestamp`) AS estado_ant,
+                   LAG(p.motivo_id)   OVER (PARTITION BY p.maquina_id ORDER BY p.`timestamp`) AS motivo_ant,
+                   LAG(p.`timestamp`) OVER (PARTITION BY p.maquina_id ORDER BY p.`timestamp`) AS ts_ant
+            FROM pulsos p
+        ) a
+        CROSS JOIN (SELECT CAST(valor AS UNSIGNED) AS minutos FROM parametros WHERE chave = 'intervalo_pulso_min') i
+        WHERE a.estado = 'parado'
+    ) g
+    GROUP BY g.maquina_id, g.grupo, g.motivo_id
+) per
+JOIN maquinas m        ON m.id = per.maquina_id
+JOIN motivos_parada mp ON mp.id = per.motivo_id;
+
 INSERT IGNORE INTO motivos_parada (descricao) VALUES
     ('almoco'),
     ('furo_processo'),
@@ -90,5 +172,8 @@ INSERT IGNORE INTO maquinas (nome, meta_disponibilidade) VALUES
     ('Máquina 2', 85.00),
     ('Máquina 3', 85.00);
 
-INSERT IGNORE INTO usuarios (nome, usuario, senha) VALUES
-    ('Administrador', 'admin', '$2b$10$osa8rWt9zcoUwoY9PBFRI.BqcSqfCUBiTrDjXkgt9.9q2CxF02AoW');
+INSERT IGNORE INTO usuarios (nome, usuario, senha, perfil) VALUES
+    ('Administrador', 'admin', '$2b$10$osa8rWt9zcoUwoY9PBFRI.BqcSqfCUBiTrDjXkgt9.9q2CxF02AoW', 'admin');
+
+-- Se o admin já existia (banco antigo), garante o perfil dele.
+UPDATE usuarios SET perfil = 'admin' WHERE usuario = 'admin';

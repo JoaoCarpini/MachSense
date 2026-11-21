@@ -1,19 +1,18 @@
 <?php
 
 require_once __DIR__ . '/includes/auth.php';
-require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/conexao.php';
 require_once __DIR__ . '/includes/funcoes.php';
 
 // Indicadores de cada máquina ativa + estado e motivo do ÚLTIMO pulso
 $stmt = $pdo->prepare(
     'SELECT v.machine_id, v.maquina, v.meta_pct, v.tempo_produzindo_min, v.tempo_parado_min,
             v.disponibilidade_pct, v.ultimo_pulso,
-            ult.estado AS estado_atual,
-            mp.descricao AS motivo_atual
+            ue.estado_atual,
+            ue.motivo_atual
        FROM vw_indicadores_maquina v
        JOIN maquinas m ON m.id = v.machine_id
-       LEFT JOIN pulsos ult ON ult.maquina_id = v.machine_id AND ult.`timestamp` = v.ultimo_pulso
-       LEFT JOIN motivos_parada mp ON mp.id = ult.motivo_id
+       LEFT JOIN vw_ultimo_estado_maquina ue ON ue.machine_id = v.machine_id
       WHERE m.ativa = 1
       ORDER BY v.maquina'
 );
@@ -27,9 +26,14 @@ $paginaAtiva = 'maquinas';
 require __DIR__ . '/includes/layout_inicio.php';
 ?>
 
+        <div class="toolbar">
+            <span class="contador"><?= count($maquinas) ?> máquina(s) ativa(s)</span>
+            <a href="maquinas_listar.php" class="btn btn-secundario">Gerenciar máquinas</a>
+        </div>
+
         <?php if (!$maquinas): ?>
             <p class="empty"><strong>Nenhuma máquina ativa.</strong>
-                Cadastre ou ative máquinas em <a href="configuracoes.php?aba=maquinas">Configurações</a>.</p>
+                Cadastre ou ative máquinas em <a href="maquinas_listar.php">Gerenciar máquinas</a>.</p>
         <?php else: ?>
             <section class="cards-maquinas" aria-label="Máquinas ativas">
                 <?php foreach ($maquinas as $m):
