@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MachSense — CRUD de máquinas com JavaScript</title>
+    <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+
+    <main class="pagina">
+
+        <header class="cabecalho">
+            <h1>CRUD de máquinas</h1>
+            <p>JavaScript puro com localStorage · Programação para Web I · MachSense</p>
+        </header>
+
+        <section class="cartao" aria-labelledby="titulo-formulario">
+            <h2 id="titulo-formulario">Nova máquina</h2>
+
+            <!-- Mensagens de erro e de sucesso aparecem aqui (sem alert) -->
+            <div id="mensagem" class="mensagem" role="alert" hidden></div>
+
+            <form id="formulario" class="formulario" novalidate>
+                <!-- vazio = cadastrando; com número = editando aquele id -->
+                <input type="hidden" id="id-edicao" name="id-edicao" value="">
+
+                <div class="campo">
+                    <label for="nome">Nome da máquina</label>
+                    <input type="text" id="nome" name="nome" maxlength="60" autocomplete="off" required>
+                    <small>De 2 a 60 caracteres. Não pode repetir o nome de outra máquina.</small>
+                </div>
+
+                <div class="campo">
+                    <label for="meta">Meta de disponibilidade (%)</label>
+                    <input type="text" id="meta" name="meta" inputmode="decimal" autocomplete="off" value="85" required>
+                    <small>Número de 0 a 100, com até 2 casas (ex.: 85 ou 87,5).</small>
+                </div>
+
+                <fieldset class="campo opcoes">
+                    <legend>Máquina ativa?</legend>
+                    <label class="opcao"><input type="radio" id="ativa-sim" name="ativa" value="sim" checked> Sim</label>
+                    <label class="opcao"><input type="radio" id="ativa-nao" name="ativa" value="nao"> Não</label>
+                </fieldset>
+
+                <div class="acoes-formulario">
+                    <button type="submit" id="botao-salvar" class="botao botao-primario">Cadastrar máquina</button>
+                    <button type="button" id="botao-cancelar" class="botao" hidden>Cancelar edição</button>
+                </div>
+            </form>
+        </section>
+
+        <section class="cartao" aria-labelledby="titulo-tabela">
+            <div class="cabecalho-tabela">
+                <h2 id="titulo-tabela">Máquinas cadastradas</h2>
+                <span id="contador" class="contador"></span>
+            </div>
+
+            <!-- A tabela rola aqui dentro em telas estreitas, não a página toda -->
+            <div class="tabela-rolagem">
+                <table class="tabela">
+                    <thead>
+                        <tr>
+                            <th scope="col">Nome</th>
+                            <th scope="col" class="num">Meta</th>
+                            <th scope="col">Ativa</th>
+                            <th scope="col">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpo-tabela"></tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Ordem obrigatória: cada arquivo usa o que o anterior definiu -->
+    <script src="js/script-inicial.js"></script>
+    <script src="js/banco.js"></script>
+    <script src="js/crud.js"></script>
+    <script src="js/interface.js"></script>
+</body>
+</html>

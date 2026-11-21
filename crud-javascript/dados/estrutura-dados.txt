@@ -1,0 +1,49 @@
+ESTRUTURA DOS DADOS - CRUD DE MÁQUINAS (JavaScript + localStorage)
+
+1. CHAVE DO localStorage
+   pi_maquinas
+   O valor guardado é um texto JSON com uma lista (array) de máquinas.
+
+2. CAMPOS DE CADA REGISTRO
+   id     number    Identificador único. Gerado com Date.now(); se já existir
+                    na lista, soma 1 até achar um livre. Nunca muda na edição.
+   nome   string    Obrigatório. De 2 a 60 caracteres (depois de tirar os
+                    espaços das pontas). Não pode repetir o nome de outra
+                    máquina, sem diferenciar maiúscula de minúscula.
+   meta   number    Meta de disponibilidade em %. De 0 a 100, com no máximo
+                    2 casas decimais.
+   ativa  boolean   true = máquina ativa, false = inativa.
+
+3. DADOS DE EXEMPLO (gravados na primeira abertura)
+[
+  { "id": 1, "nome": "Máquina 1", "meta": 85, "ativa": true },
+  { "id": 2, "nome": "Máquina 2", "meta": 85, "ativa": true },
+  { "id": 3, "nome": "Máquina 3", "meta": 85, "ativa": true }
+]
+
+4. REGRAS
+   - id: cada máquina nova usa id = Date.now() (milissegundos desde 1970).
+   - Dados de exemplo: só são gravados se a chave pi_maquinas ainda NÃO existe
+     (localStorage.getItem retorna null). Se o usuário apagar todas as
+     máquinas, a chave passa a guardar "[]" e os exemplos NÃO voltam.
+   - Gravação: a lista inteira é regravada de uma vez a cada alteração.
+   - Leitura: se o JSON estiver corrompido ou não for uma lista, o sistema
+     avisa o usuário e mostra a lista vazia, sem quebrar a página.
+
+5. EQUIVALENTE NO MySQL DO PI (tabela maquinas, para comparação)
+   CREATE TABLE IF NOT EXISTS maquinas (
+       id                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+       nome                  VARCHAR(100)  NOT NULL UNIQUE,
+       meta_disponibilidade  DECIMAL(5,2)  NOT NULL DEFAULT 85.00,
+       ativa                 TINYINT(1)    NOT NULL DEFAULT 1,
+       criado_em             TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+       CONSTRAINT ck_maquinas_meta CHECK (meta_disponibilidade BETWEEN 0 AND 100)
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+   Correspondência entre os dois:
+   id (Date.now)    <->  id (AUTO_INCREMENT)
+   nome             <->  nome (no MySQL o limite é 100; aqui é 60)
+   meta             <->  meta_disponibilidade
+   ativa (boolean)  <->  ativa (TINYINT 0 ou 1)
+   (não existe)     <->  criado_em
+   Nome único: no MySQL quem garante é o UNIQUE; aqui é a função validar().
