@@ -19,6 +19,9 @@ Documentação interativa (dá pra testar os endpoints clicando):
 import logging
 import os
 import secrets
+import subprocess
+import sys
+import threading
 from collections import namedtuple
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
@@ -28,10 +31,10 @@ from typing import Literal, Optional
 import pymysql
 import pymysql.cursors
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Security
+from fastapi import Depends, FastAPI, HTTPException, Request, Security
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 # As configurações (acesso ao banco e chave da API) ficam em .env.local, que
 # NÃO vai para o Git. Variáveis já definidas no ambiente têm prioridade.
@@ -53,6 +56,30 @@ if not log.handlers:
 
 # Preenchida na subida da API (ver ciclo_de_vida)
 _chave_api: str = ""
+
+# Controle do simulador (botão "Iniciar simulação" do site). A API liga o
+# simulador.py como um processo filho e guarda o que precisa para pará-lo.
+PASTA_PROJETO = Path(__file__).resolve().parent
+ARQUIVO_SIMULADOR = PASTA_PROJETO / "simulador.py"
+ARQUIVO_LOG_SIMULADOR = PASTA_PROJETO / "logs" / "simulador.log"
+# Velocidades que o botão aceita (1 = tempo real; 60 = 1 s real vale 1 min simulado).
+# Uma lista fixa evita que um valor estranho vire argumento do processo.
+FATORES_PERMITIDOS = (30, 60, 120, 300, 600)
+LINHAS_DE_LOG = 15
+
+
+class _EstadoSimulacao:
+    """O simulador em execução (se houver). Só existe um por vez."""
+
+    def __init__(self):
+        self.trava = threading.Lock()
+        self.processo = None  # subprocess.Popen
+        self.fator = None
+        self.iniciada_em = None
+        self.parada_manual = False  # True se foi o usuário quem parou (e não um erro)
+
+
+_simulacao = _EstadoSimulacao()
 
 # Cache dos motivos de parada: {"setup": 3, ...}. Evita um SELECT por pulso.
 _motivos_cache: dict = {}
@@ -173,6 +200,9 @@ async def ciclo_de_vida(app: FastAPI):
         log.warning("MariaDB fora do ar na subida. A API responde 503 até ele voltar.")
 
     yield
+
+    # A API está fechando: não deixa o simulador órfão rodando sozinho
+    parar_simulador()
 
 
 app = FastAPI(title="MachSense API", lifespan=ciclo_de_vida)
@@ -377,6 +407,123 @@ def resumo_maquina(machine_id: int):
     if machine_id not in por_maquina:
         raise HTTPException(status_code=404, detail=f"Máquina {machine_id} não tem pulsos ainda")
     return calcular_resumo(por_maquina[machine_id])
+
+
+# ----------------------------------------------------------------------------
+# CONTROLE DO SIMULADOR (usado pelo botão "Iniciar simulação" do site)
+# ----------------------------------------------------------------------------
+def _simulador_rodando() -> bool:
+    return _simulacao.processo is not None and _simulacao.processo.poll() is None
+
+
+def _ultimas_linhas_do_log() -> list:
+    try:
+        texto = ARQUIVO_LOG_SIMULADOR.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return []
+    return texto.splitlines()[-LINHAS_DE_LOG:]
+
+
+def estado_da_simulacao() -> dict:
+    processo = _simulacao.processo
+    rodando = _simulador_rodando()
+    terminou_sozinho = processo is not None and not rodando and not _simulacao.parada_manual
+    return {
+        "rodando": rodando,
+        "pid": processo.pid if rodando else None,
+        "fator": _simulacao.fator if rodando else None,
+        "iniciada_em": _simulacao.iniciada_em.isoformat(timespec="seconds") if rodando else None,
+        # Se o simulador terminou sozinho (ex.: nenhuma máquina ativa), o código e o log explicam
+        "codigo_saida": processo.returncode if terminou_sozinho else None,
+        "log": _ultimas_linhas_do_log(),
+    }
+
+
+def iniciar_simulador(fator: int, url_api: str) -> bool:
+    """Liga o simulador.py. Devolve False se já havia um rodando (só existe um por vez)."""
+    with _simulacao.trava:
+        if _simulador_rodando():
+            return False
+
+        ARQUIVO_LOG_SIMULADOR.parent.mkdir(parents=True, exist_ok=True)
+        # Lista de argumentos (sem shell): nada do que chega pela rede vira comando.
+        # A chave da API o simulador lê do mesmo .env.local (herda o ambiente).
+        comando = [sys.executable, "-u", str(ARQUIVO_SIMULADOR), "--api-url", url_api, "--fator", str(fator)]
+        opcoes = {}
+        if sys.platform == "win32":
+            opcoes["creationflags"] = subprocess.CREATE_NO_WINDOW  # sem janela preta extra
+        try:
+            with open(ARQUIVO_LOG_SIMULADOR, "w", encoding="utf-8") as saida:
+                _simulacao.processo = subprocess.Popen(
+                    comando,
+                    cwd=PASTA_PROJETO,
+                    stdin=subprocess.DEVNULL,
+                    stdout=saida,
+                    stderr=subprocess.STDOUT,
+                    env=dict(os.environ, PYTHONIOENCODING="utf-8"),
+                    **opcoes,
+                )
+        except OSError as erro:
+            log.error("Não foi possível iniciar o simulador: %s", erro)
+            raise HTTPException(status_code=500, detail="Não foi possível iniciar o simulador.")
+
+        _simulacao.fator = fator
+        _simulacao.iniciada_em = datetime.now()
+        _simulacao.parada_manual = False
+        log.info("Simulador iniciado (pid %s, fator %s).", _simulacao.processo.pid, fator)
+        return True
+
+
+def parar_simulador() -> bool:
+    """Desliga o simulador. Devolve False se não havia nenhum rodando."""
+    with _simulacao.trava:
+        if not _simulador_rodando():
+            return False
+        processo = _simulacao.processo
+        processo.terminate()
+        try:
+            processo.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            processo.kill()
+            processo.wait(timeout=5)
+        _simulacao.parada_manual = True
+        log.info("Simulador parado.")
+        return True
+
+
+class PedidoSimulacao(BaseModel):
+    fator: int = 60
+
+    @field_validator("fator")
+    @classmethod
+    def fator_permitido(cls, valor):
+        if valor not in FATORES_PERMITIDOS:
+            raise ValueError(f"fator deve ser um destes: {list(FATORES_PERMITIDOS)}")
+        return valor
+
+
+@app.get("/simulacao", dependencies=[Depends(exigir_chave)])
+def ver_simulacao():
+    """Estado do simulador e as últimas linhas do que ele imprimiu."""
+    return estado_da_simulacao()
+
+
+@app.post("/simulacao/iniciar", dependencies=[Depends(exigir_chave)])
+def iniciar_simulacao(request: Request, pedido: Optional[PedidoSimulacao] = None):
+    fator = pedido.fator if pedido else 60
+    # O endereço onde o simulador vai enviar os pulsos vem do SOCKET do servidor
+    # (scope["server"]), nunca do cabeçalho Host: quem chama a API não decide
+    # para onde a chave da API é enviada.
+    servidor = request.scope.get("server")
+    porta = servidor[1] if servidor else int(os.getenv("MACHSENSE_API_PORT", "8000"))
+    iniciou = iniciar_simulador(fator, f"http://127.0.0.1:{porta}")
+    return {"ok": True, "ja_rodando": not iniciou, **estado_da_simulacao()}
+
+
+@app.post("/simulacao/parar", dependencies=[Depends(exigir_chave)])
+def parar_simulacao():
+    parou = parar_simulador()
+    return {"ok": True, "ja_parada": not parou, **estado_da_simulacao()}
 
 
 if __name__ == "__main__":

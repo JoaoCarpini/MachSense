@@ -1344,3 +1344,74 @@ a.btn {
 .erro-campo {
     color: var(--danger);
 }
+
+/* ---------- Simulação (simulacao.php) ---------- */
+
+.sim-estado {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.sim-item {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 12px 14px;
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.sim-rotulo {
+    color: var(--muted);
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.sim-item strong {
+    font-size: 20px;
+}
+
+.sim-item small {
+    color: var(--muted-2);
+    font-size: 11px;
+}
+
+.sim-controles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.passos-simulacao {
+    padding-left: 20px;
+    color: var(--muted-2);
+    font-size: 13px;
+    line-height: 1.9;
+}
+
+.log-simulacao {
+    margin: 0;
+    padding: 12px;
+    max-height: 260px;
+    overflow: auto;
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted-2);
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+@media (max-width: 800px) {
+    .sim-estado {
+        grid-template-columns: 1fr;
+    }
+}

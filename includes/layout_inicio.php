@@ -21,6 +21,9 @@ $itensMenu = [
 if (($_SESSION['usuario_perfil'] ?? '') === 'admin') {
     $itensMenu['usuarios'] = ['label' => 'Cadastrar usuário', 'href' => 'cadastro.php',
         'icone' => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>'];
+    // Só abre no computador do servidor e se o .env.local ligar o recurso (veja simulacao.php)
+    $itensMenu['simulacao'] = ['label' => 'Simulação', 'href' => 'simulacao.php',
+        'icone' => '<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z"/>'];
 }
 
 ?>
