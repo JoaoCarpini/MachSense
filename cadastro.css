@@ -26,16 +26,84 @@ h1 { font-size: 22px; }
 label { display: block; margin: 14px 0 6px; font-size: 12px; color: #8a97ad; letter-spacing: .05em; text-transform: uppercase; }
 label small { text-transform: none; letter-spacing: 0; }
 
-input {
+input,
+select {
     width: 100%;
     padding: 11px 12px;
     background: #05070d;
     border: 1px solid #1c2536;
     border-radius: 8px;
     color: #e6edf7;
+    font-family: inherit; /* select não herda a fonte da página sozinho */
     font-size: 14px;
 }
-input:focus { outline: none; border-color: #22d3ee; }
+input:focus,
+select:focus { outline: none; border-color: #22d3ee; }
+
+/* ---------- Select (lista de cargos) ----------
+   appearance: none tira a seta nativa do Windows; no lugar entra uma seta
+   desenhada em SVG na cor dos rótulos, que fica ciano quando o campo está em foco. */
+select {
+    appearance: none;
+    padding-right: 40px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%238a97ad' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    cursor: pointer;
+    color-scheme: dark; /* lista nativa escura nos navegadores sem base-select */
+}
+select:hover { border-color: #2a3a52; }
+select:focus {
+    border-color: #22d3ee;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2322d3ee' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+}
+/* Regra separada de propósito: navegador que não conhece :open descarta a
+   regra inteira, e isso não pode levar junto o estilo de foco acima. */
+select:open { border-color: #22d3ee; }
+
+/* Lista ABERTA no tema do sistema (Chrome/Edge 135+). Navegadores que não
+   suportam base-select ignoram este bloco e mostram a lista nativa escura. */
+@supports (appearance: base-select) {
+    select,
+    ::picker(select) {
+        appearance: base-select;
+    }
+
+    select::picker-icon { display: none; } /* já usamos a seta em SVG acima */
+
+    ::picker(select) {
+        margin-top: 6px;
+        padding: 6px;
+        background: #0d1420;
+        border: 1px solid #1c2536;
+        border-radius: 8px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, .5);
+        max-height: 280px;
+        overflow-y: auto;
+        scrollbar-width: thin;               /* barra de rolagem fina e escura */
+        scrollbar-color: #2a3a52 transparent;
+    }
+
+    option {
+        padding: 9px 10px;
+        border-radius: 6px;
+        color: #e6edf7;
+        font-size: 14px;
+        cursor: pointer;
+    }
+    option:hover,
+    option:focus-visible {
+        outline: none;
+        background: rgba(34, 211, 238, .12);
+        color: #22d3ee;
+    }
+    option:checked {
+        color: #22d3ee;
+        font-weight: 600;
+    }
+    option::checkmark { color: #22d3ee; }
+}
 
 button {
     width: 100%;

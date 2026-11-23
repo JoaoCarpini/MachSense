@@ -12,14 +12,18 @@ $itensMenu = [
         'icone' => '<circle cx="12" cy="12" r="9"/><path d="m15 9-6 6M9 9l6 6"/>'],
     'relatorios' => ['label' => 'Relatórios', 'href' => 'relatorios.php',
         'icone' => '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6M8 17v-3M12 17v-6M16 17v-2"/>'],
+    'ordens_producao' => ['label' => 'Ordens de Produção', 'href' => 'pi_ordem_producao/index.html',
+        'icone' => '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M12 11h4M12 16h4M8 11h.01M8 16h.01"/>'],
     'configuracoes' => ['label' => 'Configurações', 'href' => 'configuracoes.php',
         'icone' => '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'],
 ];
 
 // Só o administrador vê o atalho para criar contas. Quem barra de verdade é o
 // cadastro.php, que confere o perfil no banco a cada acesso.
+// Ele fica no rodapé da barra lateral, fora da lista principal.
+$itemCadastro = null;
 if (($_SESSION['usuario_perfil'] ?? '') === 'admin') {
-    $itensMenu['usuarios'] = ['label' => 'Cadastrar usuário', 'href' => 'cadastro.php',
+    $itemCadastro = ['label' => 'Cadastrar usuário', 'href' => 'cadastro.php',
         'icone' => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>'];
     // Só abre no computador do servidor e se o .env.local ligar o recurso (veja simulacao.php)
     $itensMenu['simulacao'] = ['label' => 'Simulação', 'href' => 'simulacao.php',
@@ -65,6 +69,14 @@ if (($_SESSION['usuario_perfil'] ?? '') === 'admin') {
         </nav>
 
         <div class="sidebar-foot">
+            <?php if ($itemCadastro): ?>
+                <a href="<?= e($itemCadastro['href']) ?>"
+                   class="nav-link<?= ($paginaAtiva ?? '') === 'usuarios' ? ' is-active' : '' ?>"
+                   <?= ($paginaAtiva ?? '') === 'usuarios' ? 'aria-current="page"' : '' ?>>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><?= $itemCadastro['icone'] ?></svg>
+                    <?= e($itemCadastro['label']) ?>
+                </a>
+            <?php endif; ?>
             <p class="line-status"><span class="dot"></span>LINHA_PROD #01 : OK</p>
             <div class="user">
                 <span class="avatar" aria-hidden="true"><?= e($iniciaisUsuario) ?></span>

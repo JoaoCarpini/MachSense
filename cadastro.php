@@ -56,7 +56,7 @@ if (!$falhaConexao) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MachSense | Acesso restrito</title>
-    <link rel="stylesheet" href="cadastro.css">
+    <link rel="stylesheet" href="cadastro.css?v=<?= e((string) @filemtime(__DIR__ . '/cadastro.css')) ?>">
 </head>
 <body>
 <main class="cartao">
@@ -71,6 +71,27 @@ if (!$falhaConexao) {
         exit;
     }
 }
+
+/**
+ * Cargos/departamentos aceitos. A mesma lista monta o <select> e valida o POST,
+ * então só entra no banco um valor daqui (lista branca), mesmo que alguém
+ * altere o HTML no navegador. Para incluir um cargo novo, basta acrescentar aqui.
+ */
+const CARGOS = [
+    'Operador',
+    'Manutenção',
+    'Tecnologia da Informação',
+    'Produção',
+    'Qualidade',
+    'Engenharia',
+    'PCP (Planejamento e Controle da Produção)',
+    'Logística',
+    'Almoxarifado',
+    'Segurança do Trabalho',
+    'Supervisão',
+    'Gerência',
+    'Administrativo',
+];
 
 /**
  * Valida os dados no SERVIDOR (o navegador não é lugar de confiar em entrada).
@@ -97,13 +118,10 @@ function validarCadastro(array $d): array
         $erros['usuario'] = 'De 3 a 30 caracteres: letras minúsculas, números, ponto ou sublinhado.';
     }
 
-    // Cargo: opcional, mas se vier tem tamanho máximo (coluna é VARCHAR(80)).
-    if ($d['cargo'] !== '') {
-        if (mb_strlen($d['cargo']) > 80) {
-            $erros['cargo'] = 'O cargo deve ter no máximo 80 caracteres.';
-        } elseif (!preg_match('/^[\p{L}][\p{L}0-9 .\'\/-]*$/u', $d['cargo'])) {
-            $erros['cargo'] = 'O cargo tem caracteres inválidos.';
-        }
+    // Cargo: opcional, mas se vier tem de ser um da lista CARGOS.
+    // in_array com true compara também o tipo (comparação estrita).
+    if ($d['cargo'] !== '' && !in_array($d['cargo'], CARGOS, true)) {
+        $erros['cargo'] = 'Escolha um cargo da lista.';
     }
 
     // Senha: mínimo 8; máximo 72 BYTES porque o bcrypt ignora o que passa disso.
@@ -227,6 +245,10 @@ if ($falhaConexao) {
 }
 
 $token = tokenCsrf();
+
+// ?v= com a data de modificação do CSS: quando o arquivo muda, o endereço muda
+// e o navegador baixa a versão nova em vez de usar a cópia antiga do cache.
+$versaoCss = (string) @filemtime(__DIR__ . '/cadastro.css');
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -234,7 +256,7 @@ $token = tokenCsrf();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MachSense | Criar conta</title>
-    <link rel="stylesheet" href="cadastro.css">
+    <link rel="stylesheet" href="cadastro.css?v=<?= e($versaoCss) ?>">
 </head>
 <body>
 <main class="cartao">
@@ -264,7 +286,12 @@ $token = tokenCsrf();
         <?php if (isset($erros['usuario'])): ?><span class="erro"><?= e($erros['usuario']) ?></span><?php endif; ?>
 
         <label for="cargo">Cargo <small>(opcional)</small></label>
-        <input type="text" id="cargo" name="cargo" maxlength="80" value="<?= e($valores['cargo']) ?>">
+        <select id="cargo" name="cargo">
+            <option value="">Não informado</option>
+            <?php foreach (CARGOS as $cargo): ?>
+                <option value="<?= e($cargo) ?>"<?= $valores['cargo'] === $cargo ? ' selected' : '' ?>><?= e($cargo) ?></option>
+            <?php endforeach; ?>
+        </select>
         <?php if (isset($erros['cargo'])): ?><span class="erro"><?= e($erros['cargo']) ?></span><?php endif; ?>
 
         <label for="senha">Senha</label>

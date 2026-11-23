@@ -209,6 +209,26 @@ require __DIR__ . '/includes/layout_inicio.php';
 
             </div>
 
+            <!-- Ordem de produção da máquina. O PHP não enxerga o localStorage
+                 (ele fica no navegador), então só monta o cartão vazio com o nome
+                 da máquina em data-maquina; o ordem_producao_maquina.js lê a
+                 lista de OPs do navegador e preenche o conteúdo. -->
+            <section class="panel panel-gap" id="op-maquina"
+                     data-maquina="<?= e($maquina['maquina']) ?>" aria-labelledby="t-op">
+                <header class="panel-head">
+                    <div>
+                        <h2 id="t-op">Ordem de Produção</h2>
+                        <p>Ordem ativa desta máquina no módulo Ordens de Produção</p>
+                    </div>
+                    <a href="pi_ordem_producao/index.html" class="link-mais">Abrir ordens →</a>
+                </header>
+                <div id="op-conteudo">
+                    <p class="empty"><strong>Nenhuma ordem de produção ativa.</strong></p>
+                </div>
+            </section>
+
+            <script src="ordem_producao_maquina.js"></script>
+
         <?php endif; ?>
 
 <?php require __DIR__ . '/includes/layout_fim.php'; ?>

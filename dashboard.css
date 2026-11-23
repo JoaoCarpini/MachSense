@@ -594,7 +594,8 @@ ul {
 
     .brand { padding-bottom: 0; border-bottom: none; }
     .nav { flex-direction: row; flex-wrap: wrap; }
-    .sidebar-foot { display: none; }
+    .sidebar-foot .line-status,
+    .sidebar-foot .user { display: none; }
 
     .main { padding: 20px 16px; }
     .topbar { flex-direction: column; }
@@ -1414,4 +1415,69 @@ a.btn {
     .sim-estado {
         grid-template-columns: 1fr;
     }
+}
+
+/* ---------- Cartão "Ordem de Produção" (maquina.php) ----------
+   O artigo vem do módulo de OP e pode ter até 60 caracteres sem espaço.
+   min-width: 0 deixa o valor encolher dentro da linha flex e
+   overflow-wrap: anywhere quebra a palavra, em vez de alargar a página
+   no celular. Vale só para este cartão (#op-maquina). */
+#op-maquina .indicadores dd {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Cartão "Ordens de Produção por Artigo" (relatorios.php) ----------
+   O <select> fica tão largo quanto o maior artigo (até 60 caracteres sem
+   espaço). No celular isso empurraria a página para o lado. Então:
+   o cabeçalho do cartão pode quebrar linha (o filtro desce para baixo do
+   título) e o select nunca passa da largura disponível.
+   A tabela já rola por dentro da .tabela-wrap, como a do relatório. */
+#ops-artigo .panel-head {
+    flex-wrap: wrap;
+}
+
+#ops-artigo .filtros,
+#ops-artigo .filtros label {
+    min-width: 0;
+    max-width: 100%;
+}
+
+#ops-artigo select {
+    max-width: 100%;
+}
+
+/* Nome de artigo longo quebra dentro da própria célula, em vez de alargar
+   a tabela e esconder as colunas de status atrás da rolagem.
+   white-space: normal desfaz, só nesta coluna, o nowrap da regra .tabela td. */
+#ops-artigo .tabela td:first-child {
+    min-width: 140px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/* ---------- Filtro por artigo (relatorios.php) ----------
+   Duas variações da caixa .alerta que já existe (mesmo tamanho e borda):
+   .alerta-info  = linha "Filtrado por artigo: ..." (ciano, informativa)
+   .alerta-aviso = aviso de OPs sobrepostas (amarelo, chama atenção)
+   overflow-wrap: anywhere deixa um nome de artigo longo quebrar a linha. */
+.alerta-info { color: var(--cyan); border-color: rgba(34, 211, 238, 0.5); background-color: rgba(34, 211, 238, 0.08); overflow-wrap: anywhere; }
+.alerta-aviso { color: var(--warn); border-color: rgba(245, 158, 11, 0.5); background-color: rgba(245, 158, 11, 0.08); overflow-wrap: anywhere; }
+
+.alerta-aviso ul {
+    margin-top: 6px;
+    padding-left: 18px;
+    list-style: disc;
+}
+
+/* Select "Artigo" do topo: o select fica tão largo quanto a maior opção, e
+   um artigo de 60 letras sem espaço empurraria a página para o lado no
+   celular. Com o limite, o navegador corta o texto longo dentro do select. */
+.filtro-artigo {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.filtro-artigo select {
+    max-width: 260px;
 }
