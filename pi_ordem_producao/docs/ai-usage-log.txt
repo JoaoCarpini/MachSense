@@ -1,0 +1,512 @@
+REGISTRO DE USO DE INTELIGÊNCIA ARTIFICIAL
+Atividade SIF072 "Do Conceito ao Código" — Programação para Web I
+Grupo: MachSense
+Módulo: Ordem de Produção (OP)
+
+
+=====================================================================
+(1) TRECHOS GERADOS POR IA E FERRAMENTA UTILIZADA
+=====================================================================
+
+Ferramenta: Claude Code (assistente de programação da Anthropic, modelo
+Claude Opus 5.5), usado dentro do VS Code.
+
+Arquivos gerados pela IA a partir do Prompt v2 (versão inicial de todos):
+- index.html            estrutura HTML5 semântica, formulário e lista
+- css/styles.css        estilos mobile-first, variáveis, Flexbox e Grid
+- js/script.js          constantes, localStorage, validação, CRUD,
+                        transições de status e eventos
+- README.md             (os nomes e RAs foram copiados de GRUPO.txt)
+- docs/ai-usage-log.txt este arquivo (as partes marcadas com [PREENCHER]
+                        devem ser completadas pelo grupo)
+
+A IA também escreveu e executou um script de testes automatizados
+(Playwright + Chromium) FORA do repositório, apenas para conferir o
+funcionamento. Esse script não faz parte da entrega.
+
+Trecho gerado pela IA a partir do Prompt v2.1 (ajuste pontual):
+- index.html            link "Voltar ao dashboard" (<a href="../dashboard.php">
+                        com aparência de botão) dentro do <nav> do <header>
+- css/styles.css        estilo do link "Voltar ao dashboard": reaproveita a
+                        classe .botao e as variáveis :root; largura toda no
+                        celular e largura automática a partir de 700px
+
+Trecho gerado por Claude Code a partir do Prompt v2.2 (ponte entre o módulo
+e o PI) — arquivos FORA desta pasta, na raiz do projeto:
+- maquina.php                cartão "Ordem de Produção" (section.panel com
+                             data-maquina) e <script src> do arquivo abaixo
+- ordem_producao_maquina.js  lê a chave "pi_ordens_producao" (só leitura),
+                             escolhe a OP ativa da máquina pela prioridade e
+                             desenha o cartão com textContent
+- dashboard.css              uma regra nova no fim (#op-maquina .indicadores dd)
+                             para artigo longo quebrar linha no celular
+
+Trecho gerado por Claude Code a partir do Prompt v2.3 (resumo de ordens por
+artigo) — arquivos FORA desta pasta, na raiz do projeto:
+- relatorios.php             cartão "Ordens de Produção por Artigo" (section.panel
+                             com data-desde/data-ate do filtro de período e
+                             <select> "Artigo") e <script src> do arquivo abaixo
+- ordens_por_artigo.js       lê a chave "pi_ordens_producao" (só leitura), filtra
+                             as OPs pelo período, agrupa por artigo e monta a
+                             tabela com createElement/textContent
+- dashboard.css              regras novas no fim, só para #ops-artigo (cabeçalho
+                             que quebra linha, select limitado à largura e
+                             nome de artigo longo quebrando na célula)
+
+Trecho gerado por Claude Code a partir do Prompt v2.4 (filtro por artigo no
+relatório principal) — arquivos FORA desta pasta, na raiz do projeto:
+- relatorios.php             leitura e validação dos parâmetros artigo,
+                             janelas e outras (regex, checkdate, máximo 50,
+                             nome da máquina -> id por consulta preparada);
+                             filtro por máquina e dia nas consultas da view
+                             diária só com placeholders; "—" para máquina
+                             sem janela; linha "Filtrado por artigo"; aviso
+                             de OPs sobrepostas; CSV com o mesmo filtro
+- ordens_por_artigo.js       PARTE 2: select "Artigo" no formulário do topo e
+                             cálculo das janelas (OPs Em andamento, Pausada ou
+                             Concluída) enviadas por GET
+- dashboard.css              regras novas no fim: .alerta-info, .alerta-aviso
+                             e limite de largura do select do topo
+
+
+=====================================================================
+(2) PROMPTS UTILIZADOS (v1 -> v2 -> v3)
+=====================================================================
+
+---------------------------------------------------------------------
+Prompt v1
+---------------------------------------------------------------------
+Crie um módulo de ordem de produção para um sistema de gerenciamento de produção
+industrial usando HTML, CSS e JavaScript. Deve ter um formulário para cadastrar
+ordens e uma lista mostrando as ordens cadastradas. Salve os dados no navegador.
+
+Resultado do v1: [PREENCHER]
+
+---------------------------------------------------------------------
+Prompt v2
+---------------------------------------------------------------------
+Motivo do refinamento (v1 -> v2): [PREENCHER]
+
+PAPEL
+Atue como Dev Frontend Sênior (HTML5/CSS3/JavaScript) e professor de Programação
+para Web I. Escreve código simples, comentado em português, que um aluno de 2º ano
+consegue entender e explicar em voz alta. Prefere clareza a esperteza.
+
+CONTEXTO
+Projeto: MachSense, MES simplificado (PI da faculdade, grupo MachSense). O site
+principal é PHP + MariaDB e NÃO deve ser alterado.
+Atividade SIF072 "Do Conceito ao Código": implementar UM módulo do PI só com HTML,
+CSS e JavaScript puros, persistindo em localStorage. O módulo será defendido
+oralmente, então cada decisão precisa ser explicável.
+Módulo: ORDEM DE PRODUÇÃO (OP), baseado nas regras de negócio do PI (RN006 a RN009).
+Responsivo, mobile-first, tema escuro do MachSense (#05070d, #0d1420, #1c2536,
+#e6edf7, #22d3ee, #f87171, #34d399). O repositório tem crud-javascript/ (CRUD de
+máquinas): use só como referência de estilo, sem copiar código.
+Uma tentativa anterior (v1), com um prompt genérico de uma linha, não especificava
+estrutura de pastas, HTML semântico, CSS mobile-first, validação nem localStorage
+com try/catch. Esta v2 corrige isso com restrições explícitas.
+
+Decisões do grupo (padrão, ajustáveis):
+- Chave do localStorage: "pi_ordens_producao"
+- Campos: id (number), numero (texto único, ex.: "OP-0042"), produto (2 a 60
+  caracteres), quantidade (inteiro > 0), inicio (data), termino (data, não anterior
+  ao início), maquina ("Máquina 1", "Máquina 2" ou "Máquina 3", lista fixa no
+  script), status.
+- Status: Planejada, Em andamento, Pausada, Concluída, Cancelada. Nova OP nasce
+  Planejada.
+- Transições: Planejada -> Em andamento ou Cancelada; Em andamento -> Pausada,
+  Concluída ou Cancelada; Pausada -> Em andamento ou Cancelada; Concluída e
+  Cancelada são finais.
+- Escopo: criar e listar obrigatórios; editar (só se não for final) e excluir (com
+  confirm) como meta. Fora do escopo: registro de produção e perdas.
+
+TAREFA
+Crie a pasta pi_ordem_producao/ na raiz do repositório com exatamente:
+  README.md                 nome do grupo, RA e nomes (copiar de GRUPO.txt)
+  index.html
+  css/styles.css
+  js/script.js              um único arquivo
+  docs/ai-usage-log.txt
+
+1) index.html: HTML5 semântico (header, nav, main, section, footer, form), label
+   associado a cada campo, hierarquia h1-h3, mensagens de erro numa área com
+   role="alert" na página (sem alert()).
+2) css/styles.css: reset com box-sizing: border-box, variáveis CSS (:root), layout
+   com Flexbox e/ou Grid (comente por que cada um: Flexbox em 1 dimensão, como
+   navbar e botões; Grid em 2 dimensões, como formulário e cards), MOBILE-FIRST (base
+   em 320px, media queries com min-width). Os breakpoints devem ser escolhidos pelo
+   CONTEÚDO (onde o layout realmente quebra), não por tabela de devices; comente em
+   que largura quebra e por quê. Foco visível nos campos e botões e contraste
+   suficiente. Comentários em português explicando o porquê.
+3) js/script.js: let/const, funções pequenas (carregar, salvar, validar, criar,
+   listar, atualizarStatus, excluir), addEventListener, validação antes de qualquer
+   gravação, localStorage com try/catch em toda leitura e escrita (JSON corrompido
+   não pode quebrar a página), lista gravada inteira de uma vez, escaparHtml em tudo
+   que o usuário digitou, delegação de eventos nos botões da lista, mapa
+   const TRANSICOES = {...} e botão de transição inválida nem aparece.
+4) docs/ai-usage-log.txt com as 4 seções exigidas: (1) trechos gerados por IA e
+   ferramenta (Claude Code); (2) prompts exatos numerados v1 -> v2 -> v3: registre
+   como "Prompt v1" o texto "Crie um módulo de ordem de produção para um sistema
+   de gerenciamento de produção industrial usando HTML, CSS e JavaScript. Deve ter
+   um formulário para cadastrar ordens e uma lista mostrando as ordens cadastradas.
+   Salve os dados no navegador.", como "Prompt v2" este próprio prompt (copiado sem
+   alterar) e deixe v3 com [PREENCHER]; o motivo de cada refinamento e o resultado
+   do v1 ficam com [PREENCHER], sem inventar; (3) modificações manuais: só o título
+   e [PREENCHER]; (4) explicação conceitual em linguagem simples, marcada como
+   rascunho a ser revisado pelo grupo.
+5) Testes de verdade com Chromium/Playwright (script temporário fora do repo): sem
+   erros no console nem requisições externas; criar OP válida (status Planejada, no
+   localStorage); recusar número duplicado, produto vazio ou de 1 letra, quantidade
+   0/negativa/decimal/vazia, término antes do início, data vazia, máquina fora da
+   lista; Planejada -> Concluída impossível e estados finais sem botão; editar
+   mantém o id; excluir com confirm cancelado/aceito; persistência ao recarregar E
+   ao fechar/reabrir o navegador; JSON corrompido não quebra; XSS com
+   <img src=x onerror="window.__xss=1"> aparece como texto; layout OK em 320, 375,
+   768, 1024 e 1440 px sem rolagem horizontal (screenshots em 1280 e 360 px);
+   grep confirma ausência de style=, onclick=, var, bibliotecas e CDN.
+
+RESTRIÇÕES
+- Mexer SOMENTE em pi_ordem_producao/. Nada fora dela (nem crud-javascript/, nem
+  PHP). git status deve mostrar só a pasta nova.
+- JavaScript puro: sem bibliotecas, frameworks ou CDN; sem estilos nem eventos
+  inline.
+- Código explicável linha a linha: sem classes, módulos ES, async nem regex
+  complicada; se usar algo que um aluno possa não conhecer, explique em comentário.
+- NÃO fazer commit, push, merge nem tag. Eu faço os commits.
+- Nenhum Co-Authored-By nem menção a IA em arquivos do projeto, exceto em
+  docs/ai-usage-log.txt.
+- Responder em português.
+
+SAÍDA
+Ao final, mostrar: (a) árvore de arquivos; (b) uma linha por arquivo; (c) resultado
+de cada teste em uma linha; (d) uma tabela "conceito da disciplina -> arquivo ->
+função ou linha" com os 7 itens: HTML5 semântico, box-sizing, Flexbox/Grid, media
+query mobile-first, DOM e eventos, localStorage, validação; (e) 10 perguntas que um
+professor faria sobre este código, com resposta curta; (f) git status.
+
+---------------------------------------------------------------------
+Prompt v2.1 (ajuste pontual)
+---------------------------------------------------------------------
+Motivo do refinamento (v2 -> v2.1): faltava navegação de volta ao dashboard do PI
+
+PAPEL
+Atue como Dev Frontend Sênior (HTML5/CSS3), com código simples e comentado em
+português, que um aluno consiga explicar em voz alta.
+
+CONTEXTO
+Módulo pi_ordem_producao/ (HTML, CSS e JS puros, localStorage) do projeto MachSense.
+Ele é aberto a partir do menu do site em PHP (localhost/machsense/dashboard.php).
+Falta um jeito de voltar ao dashboard. O módulo deve continuar abrindo sozinho, sem
+depender do PHP.
+
+TAREFA
+Adicione um link com aparência de botão "Voltar ao dashboard" que leva para
+../dashboard.php (caminho relativo, mesma aba).
+1) index.html: use um <a href="../dashboard.php"> dentro do <nav> que já existe no
+   <header>, com texto visível "Voltar ao dashboard" (pode ter uma seta "←" como
+   caractere de texto, sem imagem nem biblioteca de ícones).
+2) css/styles.css: estilize reaproveitando as variáveis :root e o padrão dos botões
+   que já existem (não crie cores novas). Mobile-first: na base ocupa a largura
+   disponível e fica fácil de tocar (altura mínima de 44px); a partir do breakpoint
+   que já existe e faz sentido, fica com largura automática. Foco visível e
+   contraste suficiente. Comente em português o porquê.
+3) Não altere js/script.js nem a lógica do módulo.
+4) Testes (Chromium/Playwright, script temporário fora do repo): o link existe e tem
+   href "../dashboard.php"; é alcançável pelo teclado (Tab) e mostra foco visível;
+   em 320, 375, 768 e 1440 px não há rolagem horizontal; os testes anteriores do
+   módulo continuam passando; grep confirma ausência de style=, onclick= e var.
+5) docs/ai-usage-log.txt: acrescente, SEM alterar o que já está escrito, uma entrada
+   na seção 1 (trecho gerado: link "Voltar ao dashboard" em index.html e styles.css)
+   e, na seção 2, o texto exato deste prompt como "Prompt v2.1 (ajuste pontual)",
+   com o motivo: "faltava navegação de volta ao dashboard do PI".
+
+RESTRIÇÕES
+- Mexer SOMENTE em pi_ordem_producao/ (index.html, css/styles.css e
+  docs/ai-usage-log.txt). Nada fora dela. Sem estilos nem eventos inline, sem
+  bibliotecas, sem CDN.
+- NÃO fazer commit, push, merge nem tag. Nenhum Co-Authored-By nem menção a IA fora
+  do docs/ai-usage-log.txt.
+- Responder em português.
+
+SAÍDA
+Mostre o git
+
+---------------------------------------------------------------------
+Prompt v2.2 (ponte entre o módulo e o PI)
+---------------------------------------------------------------------
+Motivo do refinamento (v2.1 -> v2.2): mostrar a OP na página da máquina
+
+PAPEL
+Atue como Dev Full-stack sênior (PHP 8, HTML, CSS, JavaScript puro) com código
+simples, comentado em português, que um aluno consiga explicar.
+
+CONTEXTO
+Projeto MachSense (PHP puro + MariaDB, XAMPP). Existe o módulo independente
+pi_ordem_producao/ (HTML/CSS/JS, localStorage, chave "pi_ordens_producao"). Leia
+pi_ordem_producao/js/script.js para ver o formato exato de cada ordem e os valores
+exatos de status. Na página maquina.php (detalhe da máquina) quero mostrar qual
+ordem de produção está associada àquela máquina. Como o PHP não lê o localStorage,
+um JavaScript externo na própria página lê a chave e desenha um cartão. As duas
+páginas rodam em http://localhost, então compartilham o localStorage. Esta é uma
+ponte de demonstração, não substitui um banco de dados.
+
+TAREFA
+1) maquina.php: acrescente UM cartão "Ordem de produção" seguindo o padrão visual e
+   as classes dos cartões que já existem na página. O container deve ter
+   data-maquina="<nome da máquina, escapado com a função de escape que o projeto já
+   usa>" (não deduza o nome lendo o <h1>). Carregue o script novo com <script src>
+   externo, respeitando o CSP do projeto (sem script nem estilo inline).
+2) Novo arquivo ordem_producao_maquina.js na raiz: carregar a lista com try/catch
+   (JSON inválido ou chave ausente = lista vazia, sem erro no console); filtrar as
+   ordens cuja máquina seja igual ao data-maquina; ignorar Concluída e Cancelada;
+   escolher UMA ordem por esta prioridade: (a) Em andamento; (b) Pausada;
+   (c) Planejada com início igual a hoje; (d) Planejada futura de menor data de
+   início. Mostrar: rótulo ("Em produção agora", "Pausada", "Programada para hoje",
+   "Próxima ordem"), número da OP, artigo/produto, quantidade, início e término no
+   formato dd/mm/aaaa. Sem ordem: "Nenhuma ordem de produção ativa". Use
+   textContent (nunca innerHTML com dados do usuário). Compare datas como texto
+   AAAA-MM-DD, com "hoje" no fuso local do navegador.
+3) NÃO altere o status de nenhuma ordem e NÃO grave nada no localStorage: o script
+   só lê. A mudança de status continua só pelo botão Iniciar do módulo.
+4) Estilos: se precisar de CSS novo, acrescente poucas regras ao CSS que a página já
+   carrega, reutilizando as variáveis e classes existentes, sem alterar as regras
+   atuais.
+5) Testes (Chromium/Playwright, script temporário fora do repo, servidor PHP local
+   com sessão logada): sem OP = mensagem "Nenhuma..."; OP Planejada com início hoje
+   na Máquina 1 aparece em maquina.php da Máquina 1 e NÃO aparece na Máquina 2;
+   passando a Em andamento (pelo módulo) o rótulo muda; Concluída some; JSON
+   corrompido não gera erro no console; nome com <img src=x onerror="window.__xss=1">
+   aparece como texto; layout sem rolagem horizontal em 360 e 1280 px; as demais
+   páginas e o módulo continuam funcionando.
+6) docs/ai-usage-log.txt (em pi_ordem_producao/docs): acrescente, SEM alterar o que
+   existe, uma entrada na seção 1 (cartão em maquina.php e ordem_producao_maquina.js,
+   gerados por Claude Code) e na seção 2 o texto exato deste prompt como "Prompt v2.2
+   (ponte entre o módulo e o PI)", motivo: "mostrar a OP na página da máquina".
+
+RESTRIÇÕES
+- Mexer somente em: maquina.php, ordem_producao_maquina.js, o CSS já usado pela
+  página (se necessário) e pi_ordem_producao/docs/ai-usage-log.txt. Nada mais.
+- Não mexer em includes/layout_inicio.php nem nos arquivos de simulação (têm
+  alterações do grupo ainda sem commit).
+- Sem bibliotecas, sem CDN, sem eventos inline, sem var.
+- NÃO fazer commit, push, merge nem tag. Sem Co-Authored-By nem menção a IA fora do
+  log de IA.
+- Responder em português.
+
+SAÍDA
+Git diff só dos arquivos alterados, resultado de cada teste em uma linha, uma frase
+explicando por que o PHP não consegue ler o localStorage e como a ponte funciona, e
+o git status.
+
+---------------------------------------------------------------------
+Prompt v2.3 (resumo de ordens por artigo)
+---------------------------------------------------------------------
+Motivo do refinamento (v2.2 -> v2.3): relatório de ordens por artigo, além do filtro
+de período
+
+PAPEL
+Atue como Dev Full-stack sênior (PHP 8, HTML, CSS, JavaScript puro) com código
+simples, comentado em português, que um aluno consiga explicar.
+
+CONTEXTO
+Projeto MachSense (PHP puro + MariaDB, XAMPP). O módulo independente
+pi_ordem_producao/ guarda ordens de produção no localStorage, chave
+"pi_ordens_producao". Leia pi_ordem_producao/js/script.js para ver o formato exato
+da ordem e os valores de status. Já existe a ponte ordem_producao_maquina.js, que lê
+essa chave em maquina.php (use-a como referência de estilo, sem alterá-la).
+Em relatorios.php existe um filtro de período feito no servidor. Quero um cartão
+extra com as ordens agrupadas por artigo. O PHP não lê o localStorage, então o
+cálculo é feito em um JavaScript externo no navegador. Isto NÃO é relatório de
+disponibilidade: é um resumo das ordens cadastradas neste navegador.
+
+TAREFA
+1) relatorios.php: leia como o filtro de período funciona (nomes dos parâmetros,
+   formato das datas) e acrescente UM cartão "Ordens de produção por artigo",
+   seguindo o padrão visual dos cartões existentes. O container recebe o período
+   atual em atributos data-desde e data-ate (valores escapados, no formato
+   AAAA-MM-DD; vazio se não houver filtro). Carregue o script novo com <script src>
+   externo, respeitando o CSP do projeto. Nenhum cálculo, consulta ou conteúdo
+   existente da página pode mudar.
+2) Novo arquivo ordens_por_artigo.js na raiz: carregar a lista com try/catch (JSON
+   inválido ou ausente = lista vazia, sem erro no console); considerar as ordens cujo
+   intervalo [início, término] se sobreponha ao período (período vazio = todas);
+   agrupar por artigo ignorando maiúsculas, minúsculas e espaços nas pontas, mas
+   mostrando o nome como foi digitado na primeira ocorrência; para cada artigo
+   mostrar: quantidade de OPs, soma das quantidades planejadas e a contagem por
+   status. Um <select> "Artigo" (com "Todos") que filtra a tabela no navegador, sem
+   recarregar a página. Sem ordens: "Nenhuma ordem de produção no período." Use
+   textContent e createElement (nunca innerHTML com dados do usuário) e
+   addEventListener (sem eventos inline). Rótulo visível no cartão: "Dados deste
+   navegador (módulo Ordem de Produção)".
+3) O script só lê: NÃO grava no localStorage nem altera status de ordens.
+4) CSS: se precisar, poucas regras novas no CSS que a página já carrega, reutilizando
+   variáveis e classes existentes, sem alterar regras atuais.
+5) Testes (Chromium/Playwright, script temporário fora do repo, servidor PHP local
+   com sessão logada): sem OPs = mensagem; 3 OPs de 2 artigos (um deles escrito com
+   caixa diferente, "coca-cola" e "Coca-Cola") agrupam certo; o filtro de período do
+   relatório muda o resultado; o select de artigo filtra; JSON corrompido não gera
+   erro no console; artigo com <img src=x onerror="window.__xss=1"> aparece como
+   texto; sem rolagem horizontal em 360 e 1280 px; os demais cartões, o CSV e o
+   restante do site continuam iguais.
+6) pi_ordem_producao/docs/ai-usage-log.txt: acrescente, SEM alterar o que existe, uma
+   entrada na seção 1 (cartão em relatorios.php e ordens_por_artigo.js, gerados por
+   Claude Code) e na seção 2 o texto exato deste prompt como "Prompt v2.3 (resumo
+   de ordens por artigo)", motivo: "relatório de ordens por artigo, além do filtro
+   de período".
+
+RESTRIÇÕES
+- Mexer somente em: relatorios.php, ordens_por_artigo.js, o CSS já usado pela página
+  (se necessário) e pi_ordem_producao/docs/ai-usage-log.txt. Nada mais.
+- Não mexer em maquina.php, includes/layout_inicio.php nem arquivos de simulação.
+- Sem bibliotecas, sem CDN, sem estilos nem eventos inline, sem var.
+- NÃO fazer commit, push, merge nem tag. Sem Co-Authored-By nem menção a IA fora do
+  log de IA.
+- Responder em português.
+
+SAÍDA
+Git diff só dos arquivos alterados, resultado de cada teste em uma linha, uma frase
+explicando por que este cartão mostra ordens e não disponibilidade por artigo, e o
+git status.
+
+---------------------------------------------------------------------
+Prompt v2.4 (filtro por artigo no relatório principal)
+---------------------------------------------------------------------
+Motivo do refinamento (v2.3 -> v2.4): evitar misturar artigos na mesma máquina
+
+PAPEL
+Atue como Dev Full-stack sênior (PHP 8, PDO, SQL, JavaScript puro) com código
+simples, comentado em português, que um aluno consiga explicar.
+
+CONTEXTO
+Projeto MachSense (PHP puro + MariaDB, XAMPP). O módulo independente
+pi_ordem_producao/ guarda ordens de produção (OP) no localStorage, chave
+"pi_ordens_producao". Leia pi_ordem_producao/js/script.js para ver o formato exato
+da ordem e os valores de status. Em relatorios.php existe um filtro de período no
+servidor e um cartão "Ordens de Produção por Artigo" (ordens_por_artigo.js, que
+só lê o localStorage).
+Problema: o relatório principal (KPIs, gráfico "Disponibilidade por Dia" e tabela
+por máquina) mistura artigos. Se a Máquina 1 produziu Coca-Cola e Sprite na mesma
+semana, os números ficam misturados. Quero um filtro "Artigo" ao lado do filtro de
+Período que restrinja o relatório principal aos DIAS em que aquele artigo estava
+em cada máquina, usando as datas das OPs.
+
+TAREFA
+1) ordens_por_artigo.js: adicione, no formulário de filtros do topo (ao lado de
+   Período e Aplicar), um <select> "Artigo" com "Todos" e os artigos encontrados
+   nas OPs (agrupados ignorando maiúsculas e espaços nas pontas). Ao aplicar com um
+   artigo selecionado, o navegador envia por GET o parâmetro artigo (nome) e
+   janelas, que lista, para cada OP desse artigo com status Em andamento, Pausada
+   ou Concluída (ignore Planejada e Cancelada): nome da máquina, data de início e
+   data de término (AAAA-MM-DD). Mantenha o parâmetro de período já existente. Ao
+   recarregar, o select volta marcado no artigo escolhido. "Todos" = nenhum
+   parâmetro novo e o relatório fica idêntico ao atual.
+2) relatorios.php: quando houver janelas, o relatório principal (KPIs, gráfico por
+   dia, tabela por máquina) considera somente os dias de cada máquina que estejam
+   dentro de alguma janela dela E dentro do período. Aproveite a view diária que o
+   relatório já usa, filtrando por máquina e dia, sem alterar o schema nem as views.
+   O nome da máquina da janela é resolvido para id por consulta preparada.
+   Máquinas sem janela aparecem com "—" (sem dados para este artigo), não com 0%.
+3) SEGURANÇA: as janelas vêm do navegador e são entrada não confiável. Valide com
+   regex e checagem de data real (checkdate), limite a 50 janelas, descarte as
+   inválidas, use APENAS consultas preparadas com placeholders (nunca concatene
+   valores no SQL) e escape tudo que for exibido. Entrada malformada = ignorar o
+   filtro de artigo e mostrar o relatório normal, sem erro na tela.
+4) AVISO DE MISTURA: se, para a máquina e os dias considerados, existir outra OP
+   (de outro artigo, de status Em andamento, Pausada ou Concluída) com datas que se
+   sobreponham, mostre uma mensagem visível no topo do relatório, em linguagem
+   clara, dizendo que naquela máquina e naqueles dias havia mais de uma OP e que os
+   números podem estar misturados. Para isso o navegador também envia, em outro
+   parâmetro, os pares máquina+dia de OPs de outros artigos que conflitem, ou
+   envie a lista de todas as janelas ativas, como achar mais simples e seguro.
+5) Mostre sob o título do relatório, quando houver artigo selecionado, uma linha:
+   "Filtrado por artigo: X (dias estimados pelas datas planejadas das OPs)".
+6) A exportação CSV deve respeitar o mesmo filtro ou, se for complicado, ficar
+   desabilitada com um aviso enquanto um artigo estiver selecionado.
+7) Testes (Chromium/Playwright, script temporário fora do repo, servidor PHP local,
+   MariaDB local com dados de demonstração e sessão logada): sem artigo = saída
+   idêntica à atual (compare o HTML antes e depois); Coca-Cola na Máquina 1 nos
+   dias A e Sprite na Máquina 1 nos dias B: filtrar Coca-Cola mostra só os dias A e
+   os números batem com os da view para esses dias; OPs sobrepostas = aviso visível;
+   máquina sem janela mostra "—"; artigo digitado com HTML aparece como texto;
+   parâmetros maliciosos (aspas, ponto e vírgula, datas inválidas, 200 janelas) não
+   geram erro nem SQL injection; período e artigo funcionam juntos; sem erro no
+   console; as outras páginas continuam iguais.
+8) pi_ordem_producao/docs/ai-usage-log.txt: acrescente, SEM alterar o que existe,
+   uma entrada na seção 1 e, na seção 2, o texto exato deste prompt como "Prompt
+   v2.4 (filtro por artigo no relatório principal)", com o motivo: "evitar misturar
+   artigos na mesma máquina".
+
+RESTRIÇÕES
+- Mexer somente em: relatorios.php, ordens_por_artigo.js, o CSS já usado pela página,
+  includes/funcoes.php (apenas se a consulta do relatório estiver lá) e
+  pi_ordem_producao/docs/ai-usage-log.txt.
+- Sem alterar schema.sql, views, maquina.php, includes/layout_inicio.php nem arquivos
+  de simulação. Sem bibliotecas, CDN, eventos ou estilos inline, nem var.
+- NÃO fazer commit, push, merge nem tag. Sem Co-Authored-By nem menção a IA fora do
+  log de IA.
+- Responder em português.
+
+SAÍDA
+Git diff só dos arquivos alterados, resultado de cada teste em uma linha, uma frase
+sobre o que a estimativa por datas não consegue garantir e o git status.
+
+---------------------------------------------------------------------
+Prompt v3
+---------------------------------------------------------------------
+Motivo do refinamento (v2 -> v3): [PREENCHER]
+
+[PREENCHER]
+
+
+=====================================================================
+(3) MODIFICAÇÕES MANUAIS
+=====================================================================
+
+[PREENCHER]
+
+
+=====================================================================
+(4) EXPLICAÇÃO CONCEITUAL
+=====================================================================
+
+*** RASCUNHO — a ser revisado e reescrito pelo grupo com as próprias palavras ***
+
+O que o módulo faz
+Uma Ordem de Produção (OP) diz à fábrica O QUE produzir, QUANTO, EM QUAL
+máquina e ENTRE QUAIS datas. O módulo permite cadastrar OPs, ver a lista,
+mudar o status, editar e excluir.
+
+HTML (estrutura)
+A página usa tags com significado: <header> (topo com o nome do sistema),
+<nav> (links), <main> (conteúdo principal), <section> (formulário e lista),
+<article> (cada card de OP) e <footer> (rodapé). Isso ajuda leitores de tela
+e buscadores a entender a página. Cada campo tem um <label for="..."> ligado
+ao id do campo: clicar no texto foca o campo, e o leitor de tela lê o nome.
+
+CSS (aparência)
+- box-sizing: border-box faz o padding e a borda ficarem DENTRO da largura,
+  então width: 100% nunca passa da tela.
+- As cores ficam em variáveis (:root), e é só trocar num lugar.
+- Flexbox organiza coisas em UMA direção (linha do menu, fileira de botões).
+- Grid organiza em DUAS direções (linhas e colunas do formulário e dos cards).
+- Mobile-first: o CSS básico é para o celular (320px). As @media (min-width)
+  acrescentam colunas quando a tela fica larga o bastante. Os pontos de
+  quebra (560, 700, 900 e 1040px) foram escolhidos pela largura mínima que
+  um campo de data ou um card precisa para não ficar espremido.
+
+JavaScript (comportamento)
+- DOM: o script pega os elementos com getElementById e cria os cards com
+  innerHTML.
+- Eventos: addEventListener("submit") no formulário e um único
+  addEventListener("click") na lista (delegação de eventos): o clique de
+  qualquer botão "sobe" até a lista, e o script vê qual botão foi.
+- Validação: antes de salvar, validar() confere cada campo. Se houver erro,
+  nada é gravado e as mensagens aparecem na página.
+- localStorage: guarda só texto. JSON.stringify transforma a lista em texto
+  para salvar; JSON.parse faz o caminho de volta. Tudo dentro de try/catch
+  para a página não quebrar se o dado estiver corrompido.
+- Segurança: escaparHtml troca < > & " ' por códigos, então um texto como
+  <img onerror=...> aparece escrito em vez de virar código (XSS).
+- Regras de status: o objeto TRANSICOES diz para onde cada status pode ir.
+  A tela só desenha os botões permitidos, e atualizarStatus() confere de
+  novo antes de gravar.

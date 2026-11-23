@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <!-- Sem esta linha o celular "finge" ser uma tela de 980px e o layout
+         mobile-first não funciona -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MachSense — Ordens de Produção</title>
+    <!-- Ícone da aba "vazio". Sem esta linha o navegador pede /favicon.ico
+         sozinho, o arquivo não existe e aparece um erro 404 no console. -->
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+    <!-- Cabeçalho do site: nome do sistema e navegação -->
+    <header class="topo">
+        <p class="marca">MachSense</p>
+        <nav aria-label="Navegação principal">
+            <ul class="menu">
+                <li><a href="#cadastro">Cadastrar OP</a></li>
+                <li><a href="#lista">Ordens cadastradas</a></li>
+                <!-- Volta ao painel do site em PHP. Caminho relativo: ".." sobe
+                     da pasta pi_ordem_producao para a raiz do projeto, onde fica
+                     o dashboard.php. A seta fica escondida do leitor de tela
+                     (aria-hidden), que lê só "Voltar ao dashboard". -->
+                <li class="item-voltar">
+                    <a href="../dashboard.php" class="botao botao-voltar"><span aria-hidden="true">←</span> Voltar ao dashboard</a>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="conteudo">
+
+        <h1>Ordens de Produção</h1>
+        <p class="subtitulo">Planeje o que cada máquina vai produzir e acompanhe o status de cada ordem.</p>
+
+        <!-- ===== Seção 1: formulário de cadastro/edição ===== -->
+        <section id="cadastro" class="painel" aria-labelledby="titulo-form">
+            <h2 id="titulo-form">Nova ordem de produção</h2>
+
+            <!-- Área de mensagens. role="alert" faz o leitor de tela anunciar
+                 o texto assim que ele aparece. Substitui o alert() do navegador. -->
+            <div id="mensagem" class="mensagem" role="alert" hidden></div>
+
+            <!-- novalidate desliga a validação automática do navegador para que
+                 TODA validação seja a nossa, em JavaScript, com mensagens iguais
+                 em qualquer navegador -->
+            <form id="form-op" class="form-op" novalidate>
+
+                <!-- Campo escondido: vazio = cadastrando; com um id = editando -->
+                <input type="hidden" id="id-edicao" value="">
+
+                <div class="campo">
+                    <label for="numero">Número da OP</label>
+                    <input type="text" id="numero" name="numero" maxlength="7"
+                           autocomplete="off" aria-describedby="ajuda-numero">
+                    <small id="ajuda-numero">Formato OP-0000. Não pode repetir.</small>
+                </div>
+
+                <div class="campo">
+                    <label for="produto">Artigo</label>
+                    <input type="text" id="produto" name="produto" maxlength="60"
+                           autocomplete="off" aria-describedby="ajuda-produto">
+                    <small id="ajuda-produto">De 2 a 60 caracteres.</small>
+                </div>
+
+                <div class="campo">
+                    <label for="quantidade">Quantidade (peças)</label>
+                    <input type="number" id="quantidade" name="quantidade" min="1" step="1"
+                           inputmode="numeric" aria-describedby="ajuda-quantidade">
+                    <small id="ajuda-quantidade">Número inteiro maior que zero.</small>
+                </div>
+
+                <div class="campo">
+                    <label for="maquina">Máquina</label>
+                    <!-- As opções são criadas pelo script a partir da lista MAQUINAS -->
+                    <select id="maquina" name="maquina"></select>
+                </div>
+
+                <div class="campo">
+                    <label for="inicio">Início</label>
+                    <input type="date" id="inicio" name="inicio">
+                </div>
+
+                <div class="campo">
+                    <label for="termino">Término</label>
+                    <input type="date" id="termino" name="termino" aria-describedby="ajuda-termino">
+                    <small id="ajuda-termino">Não pode ser antes do início.</small>
+                </div>
+
+                <div class="botoes-form">
+                    <button type="submit" id="btn-salvar" class="botao botao-primario">Cadastrar OP</button>
+                    <button type="button" id="btn-cancelar" class="botao" hidden>Cancelar edição</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- ===== Seção 2: lista de ordens ===== -->
+        <section id="lista" class="painel" aria-labelledby="titulo-lista">
+            <div class="cabecalho-lista">
+                <h2 id="titulo-lista">Ordens cadastradas</h2>
+                <p id="contador" class="contador"></p>
+            </div>
+
+            <!-- Mensagens das ações da lista (mudar status, excluir). Fica aqui,
+                 perto dos botões, porque no celular a área do formulário
+                 estaria fora da tela. -->
+            <div id="mensagem-lista" class="mensagem" role="alert" hidden></div>
+
+            <!-- Cada OP vira um <li> com um card dentro (montado pelo script) -->
+            <ul id="lista-ops" class="lista-ops"></ul>
+        </section>
+
+    </main>
+
+    <footer class="rodape">
+        <p>MachSense · Programação para Web I · Os dados ficam salvos neste navegador (localStorage).</p>
+    </footer>
+
+    <!-- O script vai no fim do body: quando ele roda, o HTML acima já existe -->
+    <script src="js/script.js"></script>
+</body>
+</html>

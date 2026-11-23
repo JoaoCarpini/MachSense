@@ -1,0 +1,538 @@
+/* =====================================================================
+   styles.css — Módulo Ordem de Produção (MachSense)
+
+   MOBILE-FIRST: as regras "soltas" (fora de @media) valem para a tela
+   mais estreita que atendemos, 320px. As @media (min-width: ...) só
+   ACRESCENTAM ajustes quando sobra espaço. Assim o celular baixa e lê
+   só o necessário, e a tela grande herda tudo e muda poucas coisas.
+
+   Os breakpoints foram escolhidos pelo CONTEÚDO (onde o layout começa a
+   ficar apertado ou largo demais), não por uma lista de aparelhos.
+   ===================================================================== */
+
+
+/* ---------- 1. Variáveis (cores do tema escuro do MachSense) ----------
+   Ficam em :root para serem usadas no arquivo todo com var(--nome).
+   Se a cor mudar, muda num lugar só. */
+:root {
+    --fundo: #05070d;          /* fundo da página */
+    --painel: #0d1420;         /* fundo dos painéis e cards */
+    --borda: #1c2536;          /* bordas e divisórias */
+    --texto: #e6edf7;          /* texto principal */
+    --texto-fraco: #9aa7bd;    /* texto secundário (contraste ~7:1 no --painel) */
+    --destaque: #22d3ee;       /* ciano: links, foco, botão principal */
+    --erro: #f87171;           /* vermelho: erros, cancelar, excluir */
+    --sucesso: #34d399;        /* verde: sucesso, concluída */
+    --aviso: #fbbf24;          /* amarelo: pausada */
+
+    --raio: 10px;              /* arredondamento padrão */
+    --espaco: 16px;            /* espaçamento padrão (margem lateral no celular) */
+}
+
+
+/* ---------- 2. Reset ----------
+   box-sizing: border-box faz a largura informada INCLUIR padding e borda.
+   Sem isso, um input com width: 100% + padding passaria da tela e criaria
+   rolagem horizontal no celular. */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body,
+h1,
+h2,
+h3,
+p,
+ul {
+    margin: 0;
+}
+
+ul {
+    padding: 0;
+    list-style: none;
+}
+
+/* O atributo hidden precisa vencer o display: flex/grid das classes */
+[hidden] {
+    display: none !important;
+}
+
+
+/* ---------- 3. Base (320px em diante) ---------- */
+body {
+    min-width: 320px;
+    background-color: var(--fundo);
+    color: var(--texto);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+a {
+    color: var(--destaque);
+}
+
+/* FOCO VISÍVEL: quem navega pelo teclado (Tab) precisa ver onde está.
+   :focus-visible só aparece no teclado, não ao clicar com o mouse. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 3px solid var(--destaque);
+    outline-offset: 2px;
+}
+
+
+/* ---------- 4. Cabeçalho e navegação ----------
+   FLEXBOX: os itens ficam numa linha só (1 dimensão). Flexbox resolve
+   isso com pouco código: justify-content separa a marca do menu.
+   flex-wrap: wrap deixa o menu descer para a linha de baixo em 320px,
+   em vez de estourar a largura da tela. */
+.topo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 12px var(--espaco);
+    background-color: var(--painel);
+    border-bottom: 1px solid var(--borda);
+}
+
+.marca {
+    color: var(--destaque);
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.menu {
+    display: flex;          /* Flexbox de novo: links lado a lado */
+    flex-wrap: wrap;
+    gap: 4px 16px;
+}
+
+.menu a {
+    display: inline-block;
+    padding: 6px 0;         /* área de toque maior no celular */
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+/* Botão "Voltar ao dashboard" (mobile-first).
+   No celular o <nav> ocupa a linha inteira embaixo da marca, e o botão
+   ocupa a largura toda: é o alvo mais fácil de acertar com o dedo.
+   A aparência vem da classe .botao (seção 8): mesma borda, fundo, cores
+   das variáveis e altura mínima de 44px. Os seletores começam com .menu
+   para vencer a regra ".menu a" acima, que tiraria o padding do botão. */
+.topo nav {
+    flex: 1 1 100%;
+}
+
+.menu {
+    align-items: center;    /* links de texto alinhados ao meio do botão */
+}
+
+.menu .item-voltar {
+    flex: 1 1 100%;         /* o item do botão ganha uma linha só dele */
+}
+
+.menu .botao-voltar {
+    display: flex;          /* centraliza seta e texto dentro do botão */
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 16px;
+    color: var(--texto);    /* texto claro no fundo --painel: contraste ~15:1 */
+    font-size: 0.9rem;
+}
+
+.menu .botao-voltar:hover {
+    border-color: var(--destaque);
+    color: var(--destaque);
+    text-decoration: none;  /* botão não ganha sublinhado como os links */
+}
+
+.menu a:hover {
+    text-decoration: underline;
+}
+
+
+/* ---------- 5. Conteúdo principal ---------- */
+.conteudo {
+    width: 100%;
+    max-width: 1100px;      /* em telas enormes as linhas não ficam longas demais */
+    margin: 0 auto;
+    padding: 24px var(--espaco) 40px;
+}
+
+h1 {
+    font-size: 1.5rem;
+    line-height: 1.25;
+}
+
+.subtitulo {
+    margin: 6px 0 20px;
+    color: var(--texto-fraco);
+    font-size: 0.9rem;
+}
+
+.painel {
+    margin-bottom: 20px;
+    padding: var(--espaco);
+    background-color: var(--painel);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+}
+
+h2 {
+    margin-bottom: 14px;
+    font-size: 1.15rem;
+}
+
+
+/* ---------- 6. Mensagens (erro e sucesso) ---------- */
+.mensagem {
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    border: 1px solid;
+    border-radius: var(--raio);
+    font-size: 0.9rem;
+}
+
+.mensagem ul {
+    padding-left: 18px;
+    list-style: disc;
+}
+
+.mensagem-erro {
+    color: var(--erro);
+    border-color: var(--erro);
+    background-color: #1f0d10;
+}
+
+.mensagem-sucesso {
+    color: var(--sucesso);
+    border-color: var(--sucesso);
+    background-color: #0b1f19;
+}
+
+
+/* ---------- 7. Formulário ----------
+   GRID: o formulário tem linhas E colunas (2 dimensões). Com Grid basta
+   dizer quantas colunas existem e os campos se encaixam sozinhos.
+   No celular: 1 coluna (um campo embaixo do outro). */
+.form-op {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+.campo {
+    display: flex;            /* Flexbox em coluna: label, campo e dica empilhados */
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;             /* deixa a coluna do Grid encolher sem estourar */
+}
+
+label {
+    color: var(--texto-fraco);
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+input,
+select {
+    width: 100%;
+    min-height: 44px;         /* tamanho mínimo confortável para o dedo */
+    padding: 10px 12px;
+    background-color: var(--fundo);
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    color: var(--texto);
+    font: inherit;
+    font-size: 1rem;          /* 16px: abaixo disso o iPhone dá zoom ao tocar */
+    color-scheme: dark;       /* calendário e lista do select no tema escuro */
+}
+
+input:hover,
+select:hover {
+    border-color: var(--texto-fraco);
+}
+
+/* Campo com erro: borda vermelha (o script coloca aria-invalid="true") */
+input[aria-invalid="true"],
+select[aria-invalid="true"] {
+    border-color: var(--erro);
+}
+
+small {
+    color: var(--texto-fraco);
+    font-size: 0.8rem;
+}
+
+/* Botões do formulário: Flexbox, uma linha só (1 dimensão).
+   grid-column: 1 / -1 faz esta linha ocupar todas as colunas do Grid. */
+.botoes-form {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* No celular os botões do formulário ocupam a largura toda (fácil de tocar) */
+.botoes-form .botao {
+    flex: 1 1 100%;
+}
+
+
+/* ---------- 8. Botões ---------- */
+.botao {
+    min-height: 44px;
+    padding: 10px 16px;
+    background-color: var(--painel);
+    border: 1px solid var(--borda);
+    border-radius: 8px;
+    color: var(--texto);
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.botao:hover {
+    border-color: var(--texto-fraco);
+}
+
+.botao-primario {
+    background-color: var(--destaque);
+    border-color: var(--destaque);
+    color: #04121a;           /* texto escuro sobre ciano: contraste ~11:1 */
+}
+
+.botao-primario:hover {
+    background-color: #67e8f9;
+}
+
+.botao-perigo {
+    color: var(--erro);
+    border-color: var(--erro);
+}
+
+.botao-perigo:hover {
+    background-color: #1f0d10;
+}
+
+
+/* ---------- 9. Lista de ordens (cards) ---------- */
+.cabecalho-lista {
+    display: flex;            /* Flexbox: título e contador na mesma linha */
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 12px;
+    margin-bottom: 14px;
+}
+
+.cabecalho-lista h2 {
+    margin-bottom: 0;
+}
+
+.contador {
+    color: var(--texto-fraco);
+    font-size: 0.85rem;
+}
+
+/* GRID: os cards formam linhas e colunas (2 dimensões).
+   No celular: 1 card por linha. */
+.lista-ops {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+.vazio {
+    padding: 24px 8px;
+    color: var(--texto-fraco);
+    text-align: center;
+}
+
+.card {
+    display: flex;            /* Flexbox em coluna: partes do card empilhadas */
+    flex-direction: column;
+    gap: 10px;
+    height: 100%;             /* cards da mesma linha com a mesma altura */
+    padding: 14px;
+    background-color: var(--fundo);
+    border: 1px solid var(--borda);
+    border-radius: var(--raio);
+}
+
+.card-topo {
+    display: flex;            /* número à esquerda, status à direita */
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.card h3 {
+    color: var(--destaque);
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.card-produto {
+    font-weight: 600;
+    overflow-wrap: anywhere;  /* nome longo sem espaço quebra em vez de alargar o card */
+}
+
+/* Lista de detalhes (dl): rótulo e valor lado a lado.
+   GRID com 2 colunas: rótulos alinhados numa coluna e valores na outra. */
+.detalhes {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.detalhes dt {
+    color: var(--texto-fraco);
+}
+
+.detalhes dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Botões do card: Flexbox (1 dimensão) com quebra de linha.
+   margin-top: auto empurra os botões para o pé do card. */
+.card-acoes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--borda);
+}
+
+.card-acoes .botao {
+    flex: 1 1 auto;           /* dividem o espaço da linha entre si */
+    padding: 8px 12px;
+    font-size: 0.85rem;
+}
+
+/* Selo do status */
+.selo {
+    padding: 2px 10px;
+    border: 1px solid;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.selo-planejada    { color: #93c5fd;          border-color: #93c5fd; }
+.selo-em_andamento { color: var(--destaque);  border-color: var(--destaque); }
+.selo-pausada      { color: var(--aviso);     border-color: var(--aviso); }
+.selo-concluida    { color: var(--sucesso);   border-color: var(--sucesso); }
+.selo-cancelada    { color: var(--erro);      border-color: var(--erro); }
+
+.aviso-final {
+    color: var(--texto-fraco);
+    font-size: 0.85rem;
+}
+
+
+/* ---------- 10. Rodapé ---------- */
+.rodape {
+    padding: 20px var(--espaco);
+    border-top: 1px solid var(--borda);
+    color: var(--texto-fraco);
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+
+/* =====================================================================
+   MEDIA QUERIES (mobile-first: sempre min-width)
+   Conta usada: largura útil do painel = tela - 64px
+   (16px de margem da página + 16px de padding do painel, dos dois lados).
+   ===================================================================== */
+
+/* 560px: o formulário passa a ter 2 colunas.
+   Por quê: abaixo disso, 2 colunas dariam menos de 240px por campo
+   ((560 - 64 - 16 de gap) / 2 = 240px), e o campo de data em português
+   ("dd/mm/aaaa" + ícone do calendário) e as dicas ficam espremidos.
+   Os botões do formulário deixam de ocupar a linha toda. */
+@media (min-width: 560px) {
+    .form-op {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .botoes-form .botao {
+        flex: 0 0 auto;
+    }
+
+    h1 {
+        font-size: 1.75rem;
+    }
+}
+
+/* 700px: a lista passa a ter 2 cards por linha.
+   Por quê: o card mais cheio (status "Em andamento") tem 5 botões:
+   Pausar, Concluir, Cancelar, Editar e Excluir. Com menos de ~300px eles
+   quebram em 3 linhas e o card fica alto e confuso.
+   (700 - 64 - 14 de gap) / 2 = 311px, o suficiente para 2 linhas de botões. */
+@media (min-width: 700px) {
+    .lista-ops {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    /* Cabeçalho em UMA linha: marca à esquerda; links e botão "Voltar"
+       à direita, com o botão em largura automática.
+       Por quê 700px: medido, marca + 2 links + botão (184px) + espaços +
+       margens só cabem lado a lado a partir de ~600px. Em 560px (o
+       breakpoint anterior) o menu ainda quebraria em 2 linhas, então
+       usamos o próximo breakpoint que já existe. */
+    .topo nav {
+        flex: 0 1 auto;
+    }
+
+    .menu .item-voltar {
+        flex: 0 0 auto;
+    }
+
+    .menu .botao-voltar {
+        width: auto;
+    }
+}
+
+/* 900px: o formulário passa a ter 3 colunas (6 campos = 2 linhas).
+   Por quê: (900 - 64 - 32 de gaps) / 3 = 268px por campo, ainda acima
+   dos 240px que o campo de data precisa. Antes disso, 3 colunas apertam. */
+@media (min-width: 900px) {
+    .form-op {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .conteudo {
+        padding-top: 32px;
+    }
+}
+
+/* 1040px: 3 cards por linha.
+   Por quê: (1040 - 64 - 28 de gaps) / 3 = 316px por card, a mesma largura
+   confortável que justificou os 2 cards em 700px. */
+@media (min-width: 1040px) {
+    .lista-ops {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
