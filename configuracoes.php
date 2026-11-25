@@ -8,7 +8,6 @@ $abas = [
     'perfil'   => 'Perfil',
     'maquinas' => 'Máquinas',
 ];
-$abasEmBreve = ['Turnos', 'Notificações', 'Sistema'];
 
 $aba = $_GET['aba'] ?? 'perfil';
 if (!isset($abas[$aba])) {
@@ -137,9 +136,6 @@ require __DIR__ . '/includes/layout_inicio.php';
                        class="aba<?= $aba === $chave ? ' is-active' : '' ?>"
                        <?= $aba === $chave ? 'aria-current="page"' : '' ?>><?= e($rotulo) ?></a>
                 <?php endforeach; ?>
-                <?php foreach ($abasEmBreve as $rotulo): ?>
-                    <span class="aba aba-desabilitada" aria-disabled="true"><?= e($rotulo) ?> <small>Em breve</small></span>
-                <?php endforeach; ?>
             </nav>
 
             <div class="config-conteudo">
@@ -161,7 +157,7 @@ require __DIR__ . '/includes/layout_inicio.php';
                         <dl class="indicadores">
                             <div><dt>Nome</dt><dd><?= e($usuario['nome'] ?? '') ?></dd></div>
                             <div><dt>Usuário</dt><dd><?= e($usuario['usuario'] ?? '') ?></dd></div>
-                            <div><dt>Cargo</dt><dd><?= e($usuario['cargo'] ?? 'Não informado') ?></dd></div>
+                            <div><dt>Departamento</dt><dd><?= e($usuario['cargo'] ?? 'Não informado') ?></dd></div>
                             <div><dt>Cadastrado em</dt><dd><?= e(formatarDataHora($usuario['criado_em'] ?? null)) ?></dd></div>
                         </dl>
                     </section>

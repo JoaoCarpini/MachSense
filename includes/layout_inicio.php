@@ -21,11 +21,17 @@ $itensMenu = [
 // Só o administrador vê o atalho para criar contas. Quem barra de verdade é o
 // cadastro.php, que confere o perfil no banco a cada acesso.
 // Ele fica no rodapé da barra lateral, fora da lista principal.
+$ehAdmin = ($_SESSION['usuario_perfil'] ?? '') === 'admin';
 $itemCadastro = null;
-if (($_SESSION['usuario_perfil'] ?? '') === 'admin') {
+if ($ehAdmin) {
     $itemCadastro = ['label' => 'Cadastrar usuário', 'href' => 'cadastro.php',
         'icone' => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>'];
-    // Só abre no computador do servidor e se o .env.local ligar o recurso (veja simulacao.php)
+}
+
+// Simulação: administrador e quem é do departamento Produção. Quem barra de
+// verdade é o simulacao.php, que confere no banco a cada acesso. Também só
+// abre no computador do servidor e se o .env.local ligar o recurso.
+if ($ehAdmin || ($_SESSION['usuario_cargo'] ?? '') === 'Produção') {
     $itensMenu['simulacao'] = ['label' => 'Simulação', 'href' => 'simulacao.php',
         'icone' => '<circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4z"/>'];
 }

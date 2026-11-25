@@ -78,19 +78,11 @@ if (!$falhaConexao) {
  * altere o HTML no navegador. Para incluir um cargo novo, basta acrescentar aqui.
  */
 const CARGOS = [
-    'Operador',
     'Manutenção',
-    'Tecnologia da Informação',
-    'Produção',
     'Qualidade',
-    'Engenharia',
-    'PCP (Planejamento e Controle da Produção)',
-    'Logística',
-    'Almoxarifado',
-    'Segurança do Trabalho',
-    'Supervisão',
+    'Produção',
+    'Tecnologia da Informação',
     'Gerência',
-    'Administrativo',
 ];
 
 /**
@@ -121,7 +113,7 @@ function validarCadastro(array $d): array
     // Cargo: opcional, mas se vier tem de ser um da lista CARGOS.
     // in_array com true compara também o tipo (comparação estrita).
     if ($d['cargo'] !== '' && !in_array($d['cargo'], CARGOS, true)) {
-        $erros['cargo'] = 'Escolha um cargo da lista.';
+        $erros['cargo'] = 'Escolha um departamento da lista.';
     }
 
     // Senha: mínimo 8; máximo 72 BYTES porque o bcrypt ignora o que passa disso.
@@ -285,7 +277,7 @@ $versaoCss = (string) @filemtime(__DIR__ . '/cadastro.css');
         <input type="text" id="usuario" name="usuario" maxlength="30" value="<?= e($valores['usuario']) ?>" autocomplete="username">
         <?php if (isset($erros['usuario'])): ?><span class="erro"><?= e($erros['usuario']) ?></span><?php endif; ?>
 
-        <label for="cargo">Cargo <small>(opcional)</small></label>
+        <label for="cargo">Departamento <small>(opcional)</small></label>
         <select id="cargo" name="cargo">
             <option value="">Não informado</option>
             <?php foreach (CARGOS as $cargo): ?>

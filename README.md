@@ -61,9 +61,9 @@ Em vez de abrir o terminal do simulador, você liga a simulação com um clique.
 
 1. No `.env.local`, acrescente a linha `MACHSENSE_SIMULACAO_NO_SITE=1` (vem desligado por segurança). Veja o `.env.example`.
 2. Suba a API dando duplo clique em `iniciar_api.bat` (ou com `python -m uvicorn api:app --host 127.0.0.1 --port 8000`) e deixe a janela aberta.
-3. No site, entre como administrador, abra o menu **Simulação**, escolha a velocidade e clique em **Iniciar e abrir o dashboard**. O dashboard abre e se enche sozinho. Para parar, volte em Simulação e clique em **Parar**. Fechar a API também para o simulador.
+3. No site, entre como administrador ou com um usuário do departamento Produção, abra o menu **Simulação**, escolha a velocidade e clique em **Iniciar e abrir o dashboard**. O dashboard abre e se enche sozinho. Para parar, volte em Simulação e clique em **Parar**. Fechar a API também para o simulador.
 
-A página só abre no computador onde o sistema roda, só para o administrador e só com o recurso ligado. O PHP não executa programas: ele pede para a API (que roda na mesma máquina, com a chave do `.env.local`) ligar o simulador. Não rode o simulador no terminal ao mesmo tempo que o botão.
+A página só abre no computador onde o sistema roda, só para o administrador ou o departamento Produção e só com o recurso ligado. O PHP não executa programas: ele pede para a API (que roda na mesma máquina, com a chave do `.env.local`) ligar o simulador. Não rode o simulador no terminal ao mesmo tempo que o botão.
 
 Como o simulador funciona:
 
@@ -85,7 +85,7 @@ Problemas comuns:
 - API responde 401: a chave do `.env.local` usada pelo simulador é diferente da usada pela API. As duas leem o mesmo arquivo; reinicie a API depois de mudar a chave.
 - API responde 503: o MariaDB está desligado ou a senha/porta do `.env.local` está errada. A API volta sozinha quando o banco voltar.
 - Simulador diz "Nenhuma máquina ativa": cadastre ou ative máquinas no site (Gerenciar máquinas).
-- Página Simulação diz "desligada": falta `MACHSENSE_SIMULACAO_NO_SITE=1` no `.env.local`. O item do menu só aparece para o administrador.
+- Página Simulação diz "desligada": falta `MACHSENSE_SIMULACAO_NO_SITE=1` no `.env.local`. O item do menu só aparece para o administrador e para o departamento Produção.
 - Página Simulação diz API "Fora do ar": rode `iniciar_api.bat` (ou o comando do uvicorn) e deixe a janela aberta.
 - Dashboard abre vazio: ainda não chegou nenhum pulso. Ligue a API e o simulador; a página recarrega sozinha quando o primeiro pulso chegar.
 
@@ -116,7 +116,7 @@ banco_de_dados.txt   scripts de criação do banco, das tabelas e das views
 api.py               API (FastAPI) que recebe os pulsos e grava no MariaDB
 simulador.py         simulador das máquinas (manda os pulsos para a API)
 iniciar_api.bat      sobe a API com duplo clique (Windows)
-simulacao.php / .js  página com o botão que liga e desliga a simulação (só administrador)
+simulacao.php / .js  página com o botão que liga e desliga a simulação (administrador e Produção)
 includes/simulacao_api.php  ponte do site com a API do simulador (chamadas HTTP locais)
 requirements.txt     dependências do Python, com versões fixadas
 .env.example         modelo do .env.local (banco e chave da API)

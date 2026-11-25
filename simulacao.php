@@ -6,7 +6,7 @@
  * O PHP não liga o simulador: ele pede para a API (Python, na mesma máquina)
  * fazer isso, usando a chave do .env.local. Três travas, nesta ordem:
  *   1) só abre no computador onde o servidor roda (127.0.0.1);
- *   2) só para o administrador (perfil conferido no banco a cada acesso);
+ *   2) só para o administrador ou o departamento Produção (conferido no banco a cada acesso);
  *   3) só se o .env.local tiver MACHSENSE_SIMULACAO_NO_SITE=1 (vem desligado).
  */
 
@@ -21,18 +21,20 @@ if (!requisicaoLocal()) {
 }
 
 try {
-    $stmt = $pdo->prepare('SELECT perfil FROM usuarios WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT perfil, cargo FROM usuarios WHERE id = ?');
     $stmt->execute([(int) $_SESSION['usuario_id']]);
-    $perfil = $stmt->fetchColumn();
+    $conta = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 } catch (PDOException $ex) {
     registrarErroBanco('simulacao (perfil)', $ex);
     http_response_code(503);
     exit('Banco de dados indisponível no momento.');
 }
 
-if ($perfil !== 'admin') {
+// Pode simular: o administrador e quem é do departamento Produção
+$podeSimular = ($conta['perfil'] ?? '') === 'admin' || ($conta['cargo'] ?? '') === 'Produção';
+if (!$podeSimular) {
     http_response_code(403);
-    exit('Somente o administrador pode controlar a simulação.');
+    exit('Somente o administrador ou o departamento Produção pode controlar a simulação.');
 }
 
 $env = lerEnvLocal();
