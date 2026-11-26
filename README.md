@@ -6,6 +6,18 @@ O público é o gestor ou supervisor de produção, que precisa saber rápido on
 
 Os dados não vêm de sensores reais. O sistema trabalha com máquinas simuladas que enviam um sinal a cada 5 minutos dizendo se estão rodando ou paradas, e guarda esses sinais no banco.
 
+## Sumário
+
+- [O que o sistema faz hoje](#o-que-o-sistema-faz-hoje)
+- [Tecnologias](#tecnologias)
+- [Como rodar](#como-rodar)
+- [Como rodar o sistema completo](#como-rodar-o-sistema-completo)
+- [Módulo Ordem de Produção](#módulo-ordem-de-produção-programação-para-web-i)
+- [Estrutura do projeto](#estrutura-do-projeto)
+- [Banco de dados](#banco-de-dados)
+- [Segurança](#segurança)
+- [Equipe](#equipe)
+
 ## O que o sistema faz hoje
 
 - Login por usuário e senha, com a senha guardada como hash (bcrypt), token CSRF, novo ID de sessão a cada login e limite de 5 tentativas erradas em 15 minutos.
@@ -20,10 +32,6 @@ Os dados não vêm de sensores reais. O sistema trabalha com máquinas simuladas
 - Simulação pelo site, para o administrador e o departamento Produção.
 - Logout (por POST, com token CSRF).
 - Simulador de sensores (`simulador.py`) e API (`api.py`) em Python: o simulador manda um pulso por máquina e a API grava na tabela `pulsos`. O dashboard se atualiza sozinho a cada 10 segundos.
-
-## O que ainda está em desenvolvimento
-
-- Escolher o perfil ao cadastrar um usuário. Hoje toda conta nova é um usuário comum, e só o `admin` do banco é administrador.
 
 ## Tecnologias
 
@@ -92,6 +100,16 @@ Problemas comuns:
 - OPs antigas sumiram: a versão anterior do módulo salvava as OPs só no navegador. Abra Ordens de Produção no mesmo navegador de antes e clique em **Importar para o banco**.
 - Dashboard abre vazio: ainda não chegou nenhum pulso. Ligue a API e o simulador; a página recarrega sozinha quando o primeiro pulso chegar.
 
+## Módulo Ordem de Produção (Programação para Web I)
+
+Atividade em grupo SIF072 "Do Conceito ao Código". O módulo fica na pasta `pi_ordem_producao/`, feito em HTML, CSS e JavaScript puros e integrado ao sistema.
+
+- Cadastro, edição e acompanhamento das ordens de produção (OP), com controle de status.
+- Os dados ficam no MariaDB (tabela `ordens_producao`). O JavaScript fala com `ordens_producao_api.php` por `fetch()`.
+- A primeira versão gravava no `localStorage`. Migramos para o banco para que as ordens apareçam na página da máquina e filtrem os relatórios por artigo, o que dados presos ao navegador não permitem.
+- Acesso: menu **Ordens de Produção** (exige login) ou `http://localhost/machsense/pi_ordem_producao/`.
+- Regras de negócio, estrutura da pasta e grupo: `pi_ordem_producao/README.md`. Registro de uso de IA: `pi_ordem_producao/docs/ai-usage-log.txt`.
+
 ## Estrutura do projeto
 
 ```
@@ -105,7 +123,7 @@ paradas.php          períodos de parada com filtros
 relatorios.php       relatório por período e exportação CSV
 configuracoes.php    perfil, metas das máquinas e lista de usuários (só administrador)
 ordens_producao_api.php  API em JSON do módulo Ordens de Produção (lê e grava a tabela ordens_producao)
-pi_ordem_producao/   módulo Ordens de Produção (index.php, css/ e js/), exige login
+pi_ordem_producao/   módulo Ordens de Produção (index.php, css/, js/, docs/ e README.md), exige login
 dashboard.css / .js  estilo e gráficos do painel (o .js também atualiza os números a cada 10 s)
 dashboard_dados.php  os números do dashboard em JSON (só leitura, exige login)
 cadastro.php         criar conta de usuário (só administrador)
@@ -181,6 +199,6 @@ Integrantes (RA e nomes completos em `GRUPO.txt`):
 - Antonio Neto
 - Felipe Alves Pedro
 - Felippe Padovan
-- Guilherme Massaro
-- Guilherme Somera
-- João Pedro Carpini (banco de dados)
+- Guilherme Massaro 
+- Guilherme Somera 
+- João Pedro Carpini
