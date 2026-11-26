@@ -4,9 +4,8 @@
  * Funções do CRUD de máquinas (maquinas_*.php).
  * Depende de includes/seguranca.php (já carregado pelo protect.php).
  *
- * Não inclua este arquivo junto com includes/funcoes.php: as duas bibliotecas
- * definem csrfValido() com assinaturas diferentes. Os avisos abaixo usam a
- * mesma chave de sessão ($_SESSION['aviso']) das outras páginas.
+ * Os avisos abaixo usam a mesma chave de sessão ($_SESSION['aviso']) das
+ * outras páginas; se includes/funcoes.php já os definiu, valem os de lá.
  */
 
 const MAQUINA_NOME_MIN = 2;
@@ -53,9 +52,9 @@ function lerId(mixed $valor): ?int
 function exigirMetodo(string $metodo): void
 {
     if (($_SERVER['REQUEST_METHOD'] ?? '') !== $metodo) {
-        http_response_code(405);
         header('Allow: ' . $metodo);
-        exit('Método não permitido.');
+        mostrarPaginaErro(405, 'Ação não permitida', 'Esta página não pode ser aberta desse jeito. Use os botões do sistema.',
+            ['Voltar às máquinas', 'maquinas_listar.php']);
     }
 }
 
@@ -63,8 +62,7 @@ function exigirMetodo(string $metodo): void
 function exigirCsrf(): void
 {
     if (!csrfValido(campoPost('csrf'))) {
-        http_response_code(403);
-        exit('Requisição recusada: token CSRF ausente ou inválido. Volte e recarregue a página.');
+        mostrarPaginaErro(403, 'Sessão expirada', 'O formulário expirou ou não veio desta página. Volte, recarregue a página e tente de novo.');
     }
 }
 

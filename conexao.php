@@ -10,8 +10,6 @@
  */
 
 // Erros só no log (nunca na tela), mesmo se a página falhar antes do protect.php.
-// Não use includes/seguranca.php aqui: ele define csrfValido() e conflita com
-// includes/funcoes.php, que as páginas antigas carregam depois deste arquivo.
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 $pastaLogs = __DIR__ . '/logs';
@@ -23,12 +21,15 @@ if (is_dir($pastaLogs) && is_writable($pastaLogs)) {
 }
 unset($pastaLogs);
 
+require_once __DIR__ . '/includes/pagina_erro.php';
+
 $arquivoConfig = __DIR__ . '/config.local.php';
 
 if (!is_file($arquivoConfig)) {
     error_log('[MachSense] config.local.php não encontrado. Copie config.example.php para config.local.php.');
-    http_response_code(500);
-    exit('Serviço temporariamente indisponível. Tente novamente mais tarde.');
+    mostrarPaginaErro(500, 'Sistema não configurado',
+        'Falta o arquivo de configuração do banco (config.local.php). Veja o README para configurar.',
+        ['Tentar de novo', 'index.php']);
 }
 
 $config = require $arquivoConfig;
@@ -46,8 +47,9 @@ try {
     );
 } catch (PDOException $e) {
     error_log('[MachSense] Falha ao conectar ao banco: ' . $e->getMessage());
-    http_response_code(500);
-    exit('Serviço temporariamente indisponível. Tente novamente mais tarde.');
+    mostrarPaginaErro(503, 'Banco de dados indisponível',
+        'Não foi possível falar com o banco de dados. Confira se o MySQL está ligado no XAMPP e tente de novo.',
+        ['Tentar de novo', 'index.php']);
 }
 
 unset($config);

@@ -1,8 +1,10 @@
 # MachSense — Módulo Ordem de Produção (OP)
 
 Atividade SIF072 "Do Conceito ao Código" — Programação para Web I.
-Módulo do PI implementado só com HTML, CSS e JavaScript puros, com os dados
-salvos no navegador (localStorage).
+Módulo do PI com a tela em HTML, CSS e JavaScript puros. Na primeira versão
+os dados ficavam no navegador (localStorage); agora ficam no banco do
+sistema (tabela `ordens_producao`), e o JavaScript conversa com o servidor
+por `fetch()`.
 
 ## Grupo: MachSense
 
@@ -17,32 +19,30 @@ salvos no navegador (localStorage).
 
 ## Como abrir
 
-Dê duplo clique em `index.html`. Não precisa instalar nada nem de internet.
-
-Ou rode um servidor local na pasta `pi_ordem_producao`:
-
-```
-python -m http.server 8000
-```
-
-e abra `http://localhost:8000` no navegador.
+O módulo faz parte do site e exige login. Com o XAMPP ligado, entre no
+MachSense e clique em **Ordens de Produção** no menu (ou abra
+`http://localhost/machsense/pi_ordem_producao/`).
 
 ## Estrutura
 
 ```
 pi_ordem_producao/
   README.md             este arquivo
-  index.html            página: formulário de cadastro e lista de OPs
+  index.php             página: formulário de cadastro e lista de OPs (exige login)
   css/styles.css        aparência (mobile-first, tema escuro)
-  js/script.js          regras, validação, localStorage e eventos
+  js/script.js          regras, validação, fetch() para o servidor e eventos
   docs/ai-usage-log.txt registro de uso de ferramentas na atividade
+
+../ordens_producao_api.php  API em JSON que lê e grava a tabela ordens_producao
 ```
 
 ## Regras de negócio implementadas
 
-- Campos: número (OP-0000, único), produto (2 a 60 caracteres), quantidade
+- Campos: número (OP-0000, único), artigo (2 a 60 caracteres), quantidade
   (inteiro maior que zero), início, término (não pode ser antes do início),
-  máquina (Máquina 1, 2 ou 3).
+  máquina (uma das máquinas ativas cadastradas no sistema).
+- As regras são conferidas duas vezes: no JavaScript (para a tela responder
+  rápido) e no servidor, que é quem decide antes de gravar.
 - Toda OP nova nasce com status **Planejada**.
 - Transições de status permitidas:
 
@@ -60,6 +60,11 @@ pi_ordem_producao/
 
 ## Onde os dados ficam
 
-Chave `pi_ordens_producao` do localStorage, como uma lista em JSON. Para ver:
-F12 → Aplicativo (Application) → Armazenamento local. Para zerar, apague a
-chave e recarregue a página.
+Tabela `ordens_producao` do banco `machsense` (veja `schema.sql`). Todos os
+usuários e computadores veem as mesmas OPs. Para ver no phpMyAdmin:
+`SELECT * FROM ordens_producao;`
+
+As OPs da versão antiga continuam no localStorage do navegador onde foram
+criadas. Ao abrir o módulo nesse navegador, aparece o botão **Importar para o
+banco**, que copia essas OPs para a tabela (as inválidas ou com número
+repetido são ignoradas).

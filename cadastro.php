@@ -14,6 +14,7 @@ declare(strict_types=1);
  */
 
 require_once __DIR__ . '/includes/seguranca.php';
+require_once __DIR__ . '/includes/pagina_erro.php';
 
 // Segurança antes de qualquer saída: erros no log, sessão protegida, cabeçalhos.
 configurarErros();
@@ -49,26 +50,7 @@ if (!$falhaConexao) {
     }
 
     if (!$falhaConexao && $perfilAtual !== 'admin') {
-        http_response_code(403);
-        ?><!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MachSense | Acesso restrito</title>
-    <link rel="stylesheet" href="cadastro.css?v=<?= e((string) @filemtime(__DIR__ . '/cadastro.css')) ?>">
-</head>
-<body>
-<main class="cartao">
-    <h1>Acesso restrito</h1>
-    <p class="sub">Somente administrador</p>
-    <div class="aviso aviso-erro" role="alert">Você não tem permissão para cadastrar usuários.</div>
-    <p class="rodape"><a href="dashboard.php">Voltar ao painel</a></p>
-</main>
-</body>
-</html>
-<?php
-        exit;
+        mostrarPaginaErro(403, 'Acesso restrito', 'Somente o administrador pode cadastrar usuários.');
     }
 }
 
@@ -169,9 +151,8 @@ function criarUsuario(PDO $pdo, array $d): void
 // Esta página só aceita GET (mostrar o formulário) e POST (enviar).
 $metodo = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 if ($metodo !== 'GET' && $metodo !== 'POST') {
-    http_response_code(405);
     header('Allow: GET, POST');
-    exit('Método não permitido.');
+    mostrarPaginaErro(405, 'Ação não permitida', 'Esta página não pode ser aberta desse jeito.');
 }
 
 $erros = [];

@@ -7,11 +7,40 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 1000);
     }
 
+    aplicarLarguras();
     document.querySelectorAll('[data-grafico]').forEach(desenharGrafico);
 
     iniciarDetalheParadas();
     iniciarAtualizacaoDashboard();
 });
+
+/* ------------------------------------------------------------------
+ * BARRAS DE PROGRESSO
+ * A CSP do site (style-src 'self') bloqueia style="..." escrito no HTML.
+ * Por isso o PHP manda a largura em data-largura (e a posição da marca de
+ * meta em data-posicao), e o JavaScript aplica: style.width pelo JS é
+ * permitido. Os valores são números de 0 a 100; qualquer outra coisa é ignorada.
+ * ------------------------------------------------------------------ */
+
+function porcentagemValida(texto) {
+    const numero = Number(texto);
+    return Number.isFinite(numero) ? Math.min(100, Math.max(0, numero)) : null;
+}
+
+function aplicarLarguras() {
+    document.querySelectorAll('[data-largura]').forEach(function (el) {
+        const pct = porcentagemValida(el.dataset.largura);
+        if (pct !== null) {
+            el.style.width = pct + '%';
+        }
+    });
+    document.querySelectorAll('[data-posicao]').forEach(function (el) {
+        const pct = porcentagemValida(el.dataset.posicao);
+        if (pct !== null) {
+            el.style.left = pct + '%';
+        }
+    });
+}
 
 /* ------------------------------------------------------------------
  * ATUALIZAÇÃO AUTOMÁTICA DO DASHBOARD
@@ -208,6 +237,17 @@ function iniciarDetalheParadas() {
             campo.textContent = linha.dataset[campo.dataset.campo];
         });
         link.href = 'maquina.php?id=' + encodeURIComponent(linha.dataset.maquinaId);
+
+        // Formulário "Corrigir motivo" (só existe para a Manutenção e o admin):
+        // leva a identificação da parada clicada. O servidor confere tudo de novo.
+        const formMotivo = document.getElementById('form-motivo');
+        if (formMotivo) {
+            formMotivo.elements.maquina_id.value = linha.dataset.maquinaId;
+            formMotivo.elements.motivo_atual.value = linha.dataset.motivoId;
+            formMotivo.elements.inicio.value = linha.dataset.inicioBruto;
+            formMotivo.elements.fim.value = linha.dataset.fimBruto;
+            formMotivo.elements.motivo_novo.value = linha.dataset.motivoId;
+        }
 
         painel.hidden = false;
         painel.parentElement.classList.add('com-detalhe');

@@ -2,17 +2,23 @@
 // script.js — Módulo Ordem de Produção (MachSense)
 //
 // Organização do arquivo (de cima para baixo):
-//   1. Constantes (chave, máquinas, status e transições)
-//   2. Elementos da página
+//   1. Constantes (endereço da API, status e transições)
+//   2. Elementos da página e estado
 //   3. Funções utilitárias (escaparHtml, formatarData...)
-//   4. localStorage: carregar e salvar
+//   4. Comunicação com o servidor (fetch): carregar e enviar
 //   5. Validação
 //   6. CRUD: criar, atualizar, atualizarStatus, excluir
 //   7. Tela: mensagens, formulário e listar
-//   8. Eventos (addEventListener) e início
+//   8. Importação das OPs antigas do navegador
+//   9. Eventos (addEventListener) e início
+//
+// Os dados ficam no BANCO do sistema (tabela ordens_producao). Este script
+// conversa com o arquivo ../ordens_producao_api.php por fetch(), em JSON.
+// A validação daqui deixa a tela responder rápido, mas quem decide é o
+// servidor: ele confere tudo de novo antes de gravar.
 //
 // Tudo é declarado com const ou let. const = o valor não é trocado;
-// let = o valor muda depois (ex.: um contador).
+// let = o valor muda depois (ex.: a lista de ordens).
 // =====================================================================
 
 
@@ -20,15 +26,15 @@
 // 1. CONSTANTES
 // ---------------------------------------------------------------------
 
-// Nome da "gaveta" do localStorage onde a lista de OPs fica guardada
-const CHAVE = "pi_ordens_producao";
+// Endereço da API (".." sobe da pasta pi_ordem_producao para a raiz)
+const URL_API = "../ordens_producao_api.php";
 
-// Lista fixa de máquinas (decisão do grupo). O <select> é montado a
-// partir dela, e a validação confere se o valor escolhido está nela.
-const MAQUINAS = ["Máquina 1", "Máquina 2", "Máquina 3"];
+// Chave do localStorage usada pela versão ANTIGA do módulo. Só é lida para
+// oferecer a importação das OPs que ficaram salvas neste navegador.
+const CHAVE_ANTIGA = "pi_ordens_producao";
 
-// Texto que aparece na tela para cada status. No localStorage guardamos
-// só a chave (ex.: "em_andamento"), que não tem acento nem espaço.
+// Texto que aparece na tela para cada status. No banco fica só a chave
+// (ex.: "em_andamento"), que não tem acento nem espaço.
 const NOMES_STATUS = {
     planejada: "Planejada",
     em_andamento: "Em andamento",
@@ -39,8 +45,7 @@ const NOMES_STATUS = {
 
 // REGRA DE NEGÓCIO: para quais status cada status pode ir.
 // Lista vazia = status final (não sai mais dele).
-// A tela só mostra os botões que estão aqui, e atualizarStatus() confere
-// de novo antes de gravar.
+// A tela só mostra os botões que estão aqui, e o servidor confere de novo.
 const TRANSICOES = {
     planejada: ["em_andamento", "cancelada"],
     em_andamento: ["pausada", "concluida", "cancelada"],
@@ -62,7 +67,7 @@ const PRODUTO_MAX = 60;
 
 
 // ---------------------------------------------------------------------
-// 2. ELEMENTOS DA PÁGINA (buscados uma vez só e guardados num objeto)
+// 2. ELEMENTOS DA PÁGINA E ESTADO
 // ---------------------------------------------------------------------
 
 const elementos = {
@@ -80,14 +85,24 @@ const elementos = {
     mensagemForm: document.getElementById("mensagem"),
     mensagemLista: document.getElementById("mensagem-lista"),
     listaOps: document.getElementById("lista-ops"),
-    contador: document.getElementById("contador")
+    contador: document.getElementById("contador"),
+    importar: document.getElementById("importar"),
+    importarTexto: document.getElementById("importar-texto"),
+    btnImportar: document.getElementById("btn-importar")
 };
 
 // Ids dos campos do formulário (usado para marcar/desmarcar erro)
 const CAMPOS = ["numero", "produto", "quantidade", "maquina", "inicio", "termino"];
 
-// Evita repetir o aviso de "dados corrompidos" a cada leitura
-let avisouDadosCorrompidos = false;
+// Token contra CSRF que o PHP colocou na <meta name="csrf-token">
+const TOKEN_CSRF = document.querySelector('meta[name="csrf-token"]').content;
+
+// Cópia local do que veio do servidor. É trocada inteira a cada resposta.
+let ordens = [];
+let maquinas = [];
+
+// true enquanto espera o servidor: evita clicar duas vezes no mesmo botão
+let ocupado = false;
 
 
 // ---------------------------------------------------------------------
@@ -95,8 +110,8 @@ let avisouDadosCorrompidos = false;
 // ---------------------------------------------------------------------
 
 // SEGURANÇA (XSS): troca os caracteres especiais do HTML por códigos
-// inofensivos. Todo texto digitado pelo usuário que vai para innerHTML
-// passa por aqui; assim <img onerror=...> aparece como texto e não roda.
+// inofensivos. Todo texto que vai para innerHTML passa por aqui; assim
+// <img onerror=...> aparece como texto e não roda.
 // O "&" é trocado primeiro; senão os "&" criados nas outras trocas
 // seriam trocados de novo.
 function escaparHtml(valor) {
@@ -108,7 +123,7 @@ function escaparHtml(valor) {
         .replaceAll("'", "&#39;");
 }
 
-// "2026-11-23" (formato do input date) -> "23/11/2026"
+// "2026-11-23" (formato do input date e do banco) -> "23/11/2026"
 function formatarData(data) {
     if (typeof data !== "string" || data.length !== 10) {
         return "—";
@@ -120,8 +135,7 @@ function formatarData(data) {
 // O status é um dos 5 que conhecemos?
 // Object.hasOwn confere se a chave foi escrita POR NÓS no objeto.
 // Só TRANSICOES[status] não bastaria: todo objeto já vem com chaves
-// "herdadas", como "toString", e um dado adulterado no localStorage
-// com status "toString" enganaria o código.
+// "herdadas", como "toString".
 function statusValido(status) {
     return Object.hasOwn(TRANSICOES, status);
 }
@@ -142,28 +156,21 @@ function nomeDoStatus(status) {
     return NOMES_STATUS[status];
 }
 
-// Status final = não tem para onde ir (lista vazia em TRANSICOES).
-// Um status desconhecido também é tratado como final, para não oferecer
-// botões que não fazem sentido.
+// Status final = não tem para onde ir (lista vazia em TRANSICOES)
 function ehFinal(status) {
     return proximosStatus(status).length === 0;
 }
 
-// Gera um id numérico a partir do relógio (milissegundos desde 1970).
-// Se dois cadastros caírem no mesmo milissegundo, soma 1 até ficar único.
-function gerarId(lista) {
-    let id = Date.now();
-    while (lista.some(function (ordem) { return ordem.id === id; })) {
-        id = id + 1;
-    }
-    return id;
+// Procura uma OP pelo id na cópia local
+function acharOrdem(id) {
+    return ordens.find(function (ordem) { return ordem.id === id; });
 }
 
 // Sugere o próximo número: maior número existente + 1, com 4 dígitos.
 // slice(3) tira o "OP-"; padStart(4, "0") completa com zeros: 7 -> "0007".
-function sugerirNumero(lista) {
+function sugerirNumero() {
     let maior = 0;
-    lista.forEach(function (ordem) {
+    ordens.forEach(function (ordem) {
         const n = Number(String(ordem.numero).slice(3));
         if (Number.isInteger(n) && n > maior) {
             maior = n;
@@ -174,64 +181,82 @@ function sugerirNumero(lista) {
 
 
 // ---------------------------------------------------------------------
-// 4. LOCALSTORAGE: carregar e salvar
+// 4. COMUNICAÇÃO COM O SERVIDOR
 //
-// O localStorage só guarda TEXTO. Por isso:
-//   - para salvar: JSON.stringify(lista) transforma a lista em texto;
-//   - para ler:    JSON.parse(texto) transforma o texto em lista de novo.
-// Tudo fica dentro de try/catch: se o texto estiver corrompido, ou se o
-// navegador bloquear o armazenamento, o erro é "pego" e a página continua
-// funcionando em vez de travar.
+// fetch() faz a requisição sem recarregar a página. Ele devolve uma
+// Promise; com "await" o código espera a resposta antes de continuar
+// (por isso as funções que usam await são "async").
 // ---------------------------------------------------------------------
 
-function carregar() {
+// Sessão expirada: o servidor responde 401 e mandamos para o login
+function irParaLogin() {
+    window.location.href = "../index.php";
+}
+
+// GET: busca as máquinas e as ordens. Devolve true se deu certo.
+async function carregar() {
+    // Mensagem padrão; se o servidor explicar o problema, usamos a dele
+    let mensagem = "Não foi possível falar com o servidor. Confira se o XAMPP está ligado e recarregue a página.";
     try {
-        const texto = localStorage.getItem(CHAVE);
-
-        // Primeira visita: a chave ainda não existe
-        if (texto === null) {
-            return [];
-        }
-
-        const dados = JSON.parse(texto); // lança erro se o JSON for inválido
-
-        // JSON válido mas que não é uma lista (ex.: "42" ou "{}")
-        if (!Array.isArray(dados)) {
-            throw new Error("O conteúdo salvo não é uma lista.");
-        }
-
-        // Descarta itens que não são objetos (ex.: null, números, textos)
-        return dados.filter(function (item) {
-            return item !== null && typeof item === "object";
+        const resposta = await fetch(URL_API, {
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: { Accept: "application/json" }
         });
-    } catch (erro) {
-        console.warn("Não foi possível ler as ordens salvas:", erro);
-        if (!avisouDadosCorrompidos) {
-            avisouDadosCorrompidos = true;
-            mostrarMensagem(elementos.mensagemLista, [
-                "Os dados salvos estavam corrompidos e foram ignorados. " +
-                "Ao cadastrar uma nova OP, eles serão substituídos."
-            ], "erro");
+        if (resposta.status === 401) {
+            irParaLogin();
+            return false;
         }
-        return [];
+        const dados = await resposta.json();
+        if (resposta.ok && dados.ok) {
+            ordens = dados.ordens;
+            maquinas = dados.maquinas;
+            return true;
+        }
+        if (typeof dados.mensagem === "string") {
+            mensagem = dados.mensagem;
+        }
+    } catch (erro) {
+        console.warn("Não foi possível carregar as ordens:", erro);
     }
+    elementos.listaOps.innerHTML = "";
+    mostrarMensagem(elementos.mensagemLista, [mensagem], "erro");
+    return false;
 }
 
-// Grava a lista INTEIRA de uma vez. Nunca fica salvo "meio cadastro".
-// Devolve true se deu certo e false se falhou (ex.: armazenamento cheio).
-function salvar(lista) {
+// POST: manda uma ação em JSON. Sempre devolve um objeto { ok, ... }:
+// nunca lança erro, então quem chama só precisa olhar "ok".
+// Se a resposta trouxer a lista de ordens, a cópia local é atualizada.
+async function enviar(dados) {
     try {
-        localStorage.setItem(CHAVE, JSON.stringify(lista));
-        return true;
+        const resposta = await fetch(URL_API, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "X-CSRF-Token": TOKEN_CSRF
+            },
+            body: JSON.stringify(dados)
+        });
+        if (resposta.status === 401) {
+            irParaLogin();
+            return { ok: false, mensagem: "Sessão expirada." };
+        }
+        const corpo = await resposta.json();
+        if (Array.isArray(corpo.ordens)) {
+            ordens = corpo.ordens;
+        }
+        return corpo;
     } catch (erro) {
-        console.warn("Não foi possível salvar:", erro);
-        return false;
+        console.warn("Falha ao enviar:", erro);
+        return { ok: false, mensagem: "Não foi possível falar com o servidor. Tente novamente." };
     }
 }
 
 
 // ---------------------------------------------------------------------
-// 5. VALIDAÇÃO (roda ANTES de qualquer gravação)
+// 5. VALIDAÇÃO (roda ANTES de enviar; o servidor confere de novo)
 // ---------------------------------------------------------------------
 
 // Lê o que está digitado no formulário, sem converter nada ainda
@@ -251,7 +276,6 @@ function lerFormulario() {
 // idIgnorado: na edição, a própria OP não conta como "número repetido".
 function validar(dados, idIgnorado) {
     const erros = [];
-    const lista = carregar();
 
     // Número: "OP-" seguido de exatamente 4 dígitos.
     // Expressão regular /^OP-\d{4}$/:  ^ = começo do texto,
@@ -259,7 +283,7 @@ function validar(dados, idIgnorado) {
     if (!/^OP-\d{4}$/.test(dados.numero)) {
         erros.push({ campo: "numero", texto: "O número deve seguir o formato OP-0000 (ex.: OP-0042)." });
     } else {
-        const repetido = lista.some(function (ordem) {
+        const repetido = ordens.some(function (ordem) {
             return ordem.id !== idIgnorado && String(ordem.numero).toUpperCase() === dados.numero;
         });
         if (repetido) {
@@ -267,9 +291,9 @@ function validar(dados, idIgnorado) {
         }
     }
 
-    // Produto: de 2 a 60 caracteres (os espaços das pontas já foram tirados)
+    // Artigo: de 2 a 60 caracteres (os espaços das pontas já foram tirados)
     if (dados.produto.length < PRODUTO_MIN || dados.produto.length > PRODUTO_MAX) {
-        erros.push({ campo: "produto", texto: "O produto deve ter de " + PRODUTO_MIN + " a " + PRODUTO_MAX + " caracteres." });
+        erros.push({ campo: "produto", texto: "O artigo deve ter de " + PRODUTO_MIN + " a " + PRODUTO_MAX + " caracteres." });
     }
 
     // Quantidade: inteiro maior que zero.
@@ -284,8 +308,9 @@ function validar(dados, idIgnorado) {
         }
     }
 
-    // Máquina: precisa ser uma das 3 da lista fixa
-    if (!MAQUINAS.includes(dados.maquina)) {
+    // Máquina: precisa ser uma das opções do <select> (máquinas do banco)
+    const opcoes = Array.from(elementos.maquina.options).map(function (o) { return o.value; });
+    if (dados.maquina === "" || !opcoes.includes(dados.maquina)) {
         erros.push({ campo: "maquina", texto: "Escolha uma das máquinas da lista." });
     }
 
@@ -306,76 +331,48 @@ function validar(dados, idIgnorado) {
     return erros;
 }
 
-
-// ---------------------------------------------------------------------
-// 6. CRUD
-// ---------------------------------------------------------------------
-
-// CREATE: cadastra uma OP nova. Toda OP nasce com status "planejada".
-function criar(dados) {
-    const lista = carregar();
-
-    const novaOrdem = {
-        id: gerarId(lista),
+// Formato que o servidor espera (o artigo vai como "artigo" e a máquina pelo id)
+function paraServidor(dados) {
+    return {
         numero: dados.numero,
-        produto: dados.produto,
+        artigo: dados.produto,
         quantidade: Number(dados.quantidade),
+        maquina_id: Number(dados.maquina),
         inicio: dados.inicio,
-        termino: dados.termino,
-        maquina: dados.maquina,
-        status: "planejada"
+        termino: dados.termino
     };
-
-    lista.push(novaOrdem);
-    return salvar(lista); // grava a lista inteira de uma vez
 }
 
-// UPDATE: altera os dados de uma OP. O id e o status NÃO mudam aqui
+
+// ---------------------------------------------------------------------
+// 6. CRUD (cada função devolve a resposta do servidor)
+// ---------------------------------------------------------------------
+
+// CREATE: cadastra uma OP nova. O servidor grava com status "planejada".
+function criar(dados) {
+    return enviar(Object.assign({ acao: "criar" }, paraServidor(dados)));
+}
+
+// UPDATE: altera os dados de uma OP. O status NÃO muda aqui
 // (status só muda por atualizarStatus, que respeita as transições).
 function atualizar(id, dados) {
-    const lista = carregar();
-    const ordem = lista.find(function (item) { return item.id === id; });
-
-    if (ordem === undefined) {
-        return "A OP não foi encontrada. Ela pode ter sido excluída.";
-    }
-    if (ehFinal(ordem.status)) {
-        return "Esta OP já foi finalizada e não pode mais ser editada.";
-    }
-
-    ordem.numero = dados.numero;
-    ordem.produto = dados.produto;
-    ordem.quantidade = Number(dados.quantidade);
-    ordem.inicio = dados.inicio;
-    ordem.termino = dados.termino;
-    ordem.maquina = dados.maquina;
-
-    if (!salvar(lista)) {
-        return "Não foi possível salvar. Tente novamente.";
-    }
-    return ""; // texto vazio = deu certo
+    return enviar(Object.assign({ acao: "atualizar", id: id }, paraServidor(dados)));
 }
 
-// Muda o status respeitando o mapa TRANSICOES.
-// Mesmo que alguém chame esta função pelo console com uma transição
-// proibida (ex.: Planejada -> Concluída), ela recusa.
-function atualizarStatus(id, novoStatus) {
-    const lista = carregar();
-    const ordem = lista.find(function (item) { return item.id === id; });
-
+// Muda o status respeitando o mapa TRANSICOES (o servidor confere de novo)
+async function atualizarStatus(id, novoStatus) {
+    const ordem = acharOrdem(id);
     if (ordem === undefined) {
-        mostrarMensagem(elementos.mensagemLista, ["A OP não foi encontrada. Ela pode ter sido excluída."], "erro");
         listar();
-        return false;
+        return;
     }
 
-    const permitidos = proximosStatus(ordem.status);
-    if (!permitidos.includes(novoStatus)) {
+    if (!proximosStatus(ordem.status).includes(novoStatus)) {
         mostrarMensagem(elementos.mensagemLista, [
             "Mudança não permitida: " + nomeDoStatus(ordem.status) +
             " → " + nomeDoStatus(novoStatus) + "."
         ], "erro");
-        return false;
+        return;
     }
 
     // Concluída e Cancelada não têm volta: pede confirmação
@@ -385,57 +382,44 @@ function atualizarStatus(id, novoStatus) {
             "Depois disso ela não poderá mais ser alterada."
         );
         if (!certeza) {
-            return false;
+            return;
         }
     }
 
-    ordem.status = novoStatus;
-    if (!salvar(lista)) {
-        mostrarMensagem(elementos.mensagemLista, ["Não foi possível salvar. Tente novamente."], "erro");
-        return false;
-    }
+    const resposta = await enviar({ acao: "status", id: id, status: novoStatus });
 
     // Se a OP estava aberta no formulário e virou final, sai da edição
-    if (lerIdEdicao() === id && ehFinal(novoStatus)) {
+    if (resposta.ok && lerIdEdicao() === id && ehFinal(novoStatus)) {
         cancelarEdicao();
     }
 
     listar();
-    mostrarMensagem(elementos.mensagemLista, [ordem.numero + " agora está \"" + nomeDoStatus(novoStatus) + "\"."], "sucesso");
-    return true;
+    mostrarMensagem(elementos.mensagemLista, [resposta.mensagem || "Não foi possível mudar o status."], resposta.ok ? "sucesso" : "erro");
 }
 
 // DELETE: remove a OP depois de confirmar com o usuário
-function excluir(id) {
-    const lista = carregar();
-    const ordem = lista.find(function (item) { return item.id === id; });
-
+async function excluir(id) {
+    const ordem = acharOrdem(id);
     if (ordem === undefined) {
         listar();
-        return false;
+        return;
     }
 
     // confirm() mostra OK/Cancelar e devolve true ou false.
     // Ele exibe texto puro, então aqui não há risco de XSS.
-    if (!confirm("Excluir a " + ordem.numero + " (" + ordem.produto + ")?")) {
-        return false;
+    if (!confirm("Excluir a " + ordem.numero + " (" + ordem.artigo + ")?")) {
+        return;
     }
 
-    // filter cria uma lista NOVA sem a OP escolhida
-    const novaLista = lista.filter(function (item) { return item.id !== id; });
-    if (!salvar(novaLista)) {
-        mostrarMensagem(elementos.mensagemLista, ["Não foi possível excluir. Tente novamente."], "erro");
-        return false;
-    }
+    const resposta = await enviar({ acao: "excluir", id: id });
 
     // Se a OP excluída estava aberta no formulário, a edição perde o sentido
-    if (lerIdEdicao() === id) {
+    if (resposta.ok && lerIdEdicao() === id) {
         cancelarEdicao();
     }
 
     listar();
-    mostrarMensagem(elementos.mensagemLista, [ordem.numero + " excluída."], "sucesso");
-    return true;
+    mostrarMensagem(elementos.mensagemLista, [resposta.mensagem || "Não foi possível excluir."], resposta.ok ? "sucesso" : "erro");
 }
 
 
@@ -471,21 +455,30 @@ function marcarCampos(erros) {
         elementos[campo].removeAttribute("aria-invalid");
     });
     erros.forEach(function (erro) {
-        elementos[erro.campo].setAttribute("aria-invalid", "true");
+        if (elementos[erro.campo]) {
+            elementos[erro.campo].setAttribute("aria-invalid", "true");
+        }
     });
 }
 
-// Cria as <option> do select a partir da constante MAQUINAS
-function preencherMaquinas() {
+// Cria as <option> do select com as máquinas ATIVAS do banco.
+// idExtra: na edição, a máquina atual da OP entra mesmo se foi desativada.
+function preencherMaquinas(idExtra) {
+    elementos.maquina.textContent = "";
+
     const vazia = document.createElement("option");
     vazia.value = "";
     vazia.textContent = "Selecione…";
     elementos.maquina.appendChild(vazia);
 
-    MAQUINAS.forEach(function (nome) {
+    maquinas.forEach(function (maquina) {
+        if (!maquina.ativa && maquina.id !== idExtra) {
+            return;
+        }
         const opcao = document.createElement("option");
-        opcao.value = nome;
-        opcao.textContent = nome;
+        opcao.value = String(maquina.id);
+        // textContent: o nome vem do banco, mas nunca vira HTML
+        opcao.textContent = maquina.ativa ? maquina.nome : maquina.nome + " (inativa)";
         elementos.maquina.appendChild(opcao);
     });
 }
@@ -503,7 +496,8 @@ function lerIdEdicao() {
 function cancelarEdicao() {
     elementos.form.reset();
     elementos.idEdicao.value = "";
-    elementos.numero.value = sugerirNumero(carregar());
+    preencherMaquinas(null);
+    elementos.numero.value = sugerirNumero();
     elementos.tituloForm.textContent = "Nova ordem de produção";
     elementos.btnSalvar.textContent = "Cadastrar OP";
     elementos.btnCancelar.hidden = true;
@@ -512,18 +506,19 @@ function cancelarEdicao() {
 
 // Copia os dados da OP para o formulário e entra no modo edição
 function prepararEdicao(id) {
-    const ordem = carregar().find(function (item) { return item.id === id; });
+    const ordem = acharOrdem(id);
 
     if (ordem === undefined || ehFinal(ordem.status)) {
         listar();
         return;
     }
 
+    preencherMaquinas(ordem.maquina_id);
     elementos.idEdicao.value = String(ordem.id);
     elementos.numero.value = ordem.numero;
-    elementos.produto.value = ordem.produto;
+    elementos.produto.value = ordem.artigo;
     elementos.quantidade.value = String(ordem.quantidade);
-    elementos.maquina.value = ordem.maquina;
+    elementos.maquina.value = String(ordem.maquina_id);
     elementos.inicio.value = ordem.inicio;
     elementos.termino.value = ordem.termino;
 
@@ -536,7 +531,7 @@ function prepararEdicao(id) {
     elementos.numero.focus(); // leva o usuário (e a tela) até o formulário
 }
 
-// Monta o HTML de UM card. Todo valor que veio do usuário passa por
+// Monta o HTML de UM card. Todo valor que veio do banco passa por
 // escaparHtml antes de entrar no HTML.
 function montarCard(ordem) {
     const id = escaparHtml(ordem.id);
@@ -579,7 +574,7 @@ function montarCard(ordem) {
                     <h3>${numero}</h3>
                     <span class="selo selo-${status}">${nomeDoStatus(status)}</span>
                 </div>
-                <p class="card-produto">${escaparHtml(ordem.produto)}</p>
+                <p class="card-produto">${escaparHtml(ordem.artigo)}</p>
                 <dl class="detalhes">
                     <dt>Quantidade</dt><dd>${escaparHtml(quantidade)} peças</dd>
                     <dt>Máquina</dt><dd>${escaparHtml(ordem.maquina)}</dd>
@@ -592,24 +587,22 @@ function montarCard(ordem) {
         </li>`;
 }
 
-// READ: lê o localStorage e desenha todos os cards na tela
+// READ: desenha todos os cards com a cópia local (a mais nova primeiro,
+// porque o servidor já manda ordenado do id maior para o menor)
 function listar() {
-    const lista = carregar();
-
-    if (lista.length === 1) {
+    if (ordens.length === 1) {
         elementos.contador.textContent = "1 ordem";
     } else {
-        elementos.contador.textContent = lista.length + " ordens";
+        elementos.contador.textContent = ordens.length + " ordens";
     }
 
-    if (lista.length === 0) {
+    if (ordens.length === 0) {
         elementos.listaOps.innerHTML = '<li class="vazio">Nenhuma ordem de produção cadastrada.</li>';
         return;
     }
 
-    // slice() faz uma cópia e reverse() inverte: a OP mais nova aparece primeiro
     let html = "";
-    lista.slice().reverse().forEach(function (ordem) {
+    ordens.forEach(function (ordem) {
         html += montarCard(ordem);
     });
     elementos.listaOps.innerHTML = html;
@@ -617,17 +610,80 @@ function listar() {
 
 
 // ---------------------------------------------------------------------
-// 8. EVENTOS
+// 8. IMPORTAÇÃO DAS OPs ANTIGAS (localStorage -> banco)
+//
+// A versão anterior do módulo guardava as OPs só neste navegador. Se ainda
+// houver OPs lá, mostramos um aviso com o botão "Importar para o banco".
+// Depois de importar, a lista antiga é guardada com outro nome (cópia de
+// segurança) e o aviso não aparece mais.
+// ---------------------------------------------------------------------
+
+function lerOrdensAntigas() {
+    try {
+        const dados = JSON.parse(localStorage.getItem(CHAVE_ANTIGA));
+        if (!Array.isArray(dados)) {
+            return [];
+        }
+        return dados.filter(function (item) {
+            return item !== null && typeof item === "object";
+        });
+    } catch (erro) {
+        return []; // JSON inválido ou armazenamento bloqueado
+    }
+}
+
+function verificarImportacao() {
+    const antigas = lerOrdensAntigas();
+    if (antigas.length === 0) {
+        return;
+    }
+    elementos.importarTexto.textContent =
+        "Este navegador tem " + antigas.length + " OP(s) da versão antiga do módulo, " +
+        "que salvava os dados só aqui. Importe para o banco para que todos vejam.";
+    elementos.importar.hidden = false;
+}
+
+async function importarAntigas() {
+    const antigas = lerOrdensAntigas();
+    elementos.btnImportar.disabled = true;
+
+    const resposta = await enviar({ acao: "importar", ordens: antigas.slice(0, 500) });
+
+    elementos.btnImportar.disabled = false;
+    if (!resposta.ok) {
+        mostrarMensagem(elementos.mensagemLista, [resposta.mensagem || "Não foi possível importar."], "erro");
+        return;
+    }
+
+    try {
+        localStorage.setItem(CHAVE_ANTIGA + "_importadas", localStorage.getItem(CHAVE_ANTIGA));
+        localStorage.removeItem(CHAVE_ANTIGA);
+    } catch (erro) {
+        console.warn("Não foi possível limpar o localStorage:", erro);
+    }
+
+    elementos.importar.hidden = true;
+    cancelarEdicao();
+    listar();
+    mostrarMensagem(elementos.mensagemLista, [resposta.mensagem], "sucesso");
+}
+
+
+// ---------------------------------------------------------------------
+// 9. EVENTOS
 // ---------------------------------------------------------------------
 
 // Envio do formulário: serve para cadastrar E para editar
-function aoEnviarFormulario(evento) {
+async function aoEnviarFormulario(evento) {
     evento.preventDefault(); // impede o navegador de recarregar a página
+    if (ocupado) {
+        return;
+    }
 
     const dados = lerFormulario();
     const idEdicao = lerIdEdicao();
 
-    // 1º valida; só grava se não houver nenhum erro
+    // 1º valida aqui; só envia se não houver nenhum erro
     const erros = validar(dados, idEdicao);
     marcarCampos(erros);
     if (erros.length > 0) {
@@ -637,26 +693,27 @@ function aoEnviarFormulario(evento) {
         return;
     }
 
-    if (idEdicao === null) {
-        if (!criar(dados)) {
-            mostrarMensagem(elementos.mensagemForm, ["Não foi possível salvar. Tente novamente."], "erro");
-            return;
-        }
-        cancelarEdicao();
+    ocupado = true;
+    elementos.btnSalvar.disabled = true;
+    const resposta = idEdicao === null ? await criar(dados) : await atualizar(idEdicao, dados);
+    elementos.btnSalvar.disabled = false;
+    ocupado = false;
+
+    // O servidor recusou: mostra os erros dele (ex.: número usado por outra pessoa agora)
+    if (!resposta.ok) {
+        const errosServidor = Array.isArray(resposta.erros) ? resposta.erros : [];
+        marcarCampos(errosServidor);
+        const textos = errosServidor.length > 0
+            ? errosServidor.map(function (erro) { return erro.texto; })
+            : [resposta.mensagem || "Não foi possível salvar."];
+        mostrarMensagem(elementos.mensagemForm, textos, "erro");
         listar();
-        mostrarMensagem(elementos.mensagemForm, [dados.numero + " cadastrada como \"Planejada\"."], "sucesso");
-    } else {
-        const problema = atualizar(idEdicao, dados);
-        if (problema !== "") {
-            mostrarMensagem(elementos.mensagemForm, [problema], "erro");
-            cancelarEdicao();
-            listar();
-            return;
-        }
-        cancelarEdicao();
-        listar();
-        mostrarMensagem(elementos.mensagemForm, [dados.numero + " atualizada."], "sucesso");
+        return;
     }
+
+    cancelarEdicao();
+    listar();
+    mostrarMensagem(elementos.mensagemForm, [resposta.mensagem], "sucesso");
 }
 
 // DELEGAÇÃO DE EVENTOS: em vez de colocar um "ouvinte" em cada botão
@@ -664,10 +721,10 @@ function aoEnviarFormulario(evento) {
 // na <ul>. O clique "sobe" do botão até a <ul>, e aqui descobrimos qual
 // botão foi clicado. closest() procura o botão mais próximo do ponto
 // clicado (o próprio elemento ou um "pai" dele).
-function aoClicarNaLista(evento) {
+async function aoClicarNaLista(evento) {
     const botao = evento.target.closest("button[data-acao]");
-    if (botao === null) {
-        return; // clicou fora de um botão
+    if (botao === null || ocupado) {
+        return; // clicou fora de um botão, ou ainda esperando o servidor
     }
 
     const id = Number(botao.dataset.id);
@@ -675,26 +732,36 @@ function aoClicarNaLista(evento) {
 
     limparMensagem(elementos.mensagemLista);
 
-    if (acao === "status") {
-        atualizarStatus(id, botao.dataset.status);
-    } else if (acao === "editar") {
+    if (acao === "editar") {
         prepararEdicao(id);
-    } else if (acao === "excluir") {
-        excluir(id);
+        return;
     }
+
+    ocupado = true;
+    botao.disabled = true;
+    if (acao === "status") {
+        await atualizarStatus(id, botao.dataset.status);
+    } else if (acao === "excluir") {
+        await excluir(id);
+    }
+    botao.disabled = false; // se a lista foi redesenhada, o botão já é outro
+    ocupado = false;
 }
 
-function iniciar() {
-    preencherMaquinas();
-    cancelarEdicao(); // formulário limpo, com o próximo número sugerido
-    listar();
-
+async function iniciar() {
     elementos.form.addEventListener("submit", aoEnviarFormulario);
     elementos.btnCancelar.addEventListener("click", function () {
         cancelarEdicao();
         limparMensagem(elementos.mensagemForm);
     });
     elementos.listaOps.addEventListener("click", aoClicarNaLista);
+    elementos.btnImportar.addEventListener("click", importarAntigas);
+
+    if (await carregar()) {
+        cancelarEdicao(); // formulário limpo, com o próximo número sugerido
+        listar();
+        verificarImportacao();
+    }
 }
 
 iniciar();

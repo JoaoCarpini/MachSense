@@ -6,12 +6,8 @@
  * O dashboard.js chama este arquivo a cada 10 s para atualizar a tela sem
  * recarregar a página. Os campos são os mesmos que o dashboard.php mostra.
  *
- * Por que as consultas estão repetidas aqui: este arquivo usa o protect.php
- * (sessão segura + CSP), e o protect.php carrega o includes/seguranca.php,
- * que define csrfValido(). O includes/funcoes.php, usado pelo dashboard.php,
- * também define csrfValido() com outra assinatura, então os dois não podem
- * ser carregados juntos. As funções dd_* abaixo fazem o papel das de lá.
- * Se mudar uma regra no dashboard.php, mude aqui também.
+ * As funções dd_* abaixo repetem as regras do dashboard.php (formatação e
+ * consultas). Se mudar uma regra lá, mude aqui também.
  */
 
 require_once __DIR__ . '/conexao.php';

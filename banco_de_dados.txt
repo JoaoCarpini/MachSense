@@ -70,6 +70,41 @@ CREATE TABLE IF NOT EXISTS pulsos (
     )
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Ordens de produção (módulo pi_ordem_producao). Cada OP diz qual artigo,
+-- em que quantidade, em qual máquina e em qual período deve ser produzido.
+-- As regras de status (Planejada -> Em andamento -> ...) ficam no PHP
+-- (ordens_producao_api.php); o banco garante formato, datas e máquina válida.
+-- A máquina não pode ser excluída enquanto tiver OPs (RESTRICT): o
+-- maquinas_excluir.php apaga as OPs dela na mesma transação, como faz com os pulsos.
+CREATE TABLE IF NOT EXISTS ordens_producao (
+    id             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    numero         CHAR(7)         NOT NULL UNIQUE COMMENT 'Formato OP-0000',
+    artigo         VARCHAR(60)     NOT NULL,
+    quantidade     INT UNSIGNED    NOT NULL,
+    maquina_id     BIGINT UNSIGNED NOT NULL,
+    inicio         DATE            NOT NULL,
+    termino        DATE            NOT NULL,
+    status         ENUM('planejada','em_andamento','pausada','concluida','cancelada') NOT NULL DEFAULT 'planejada',
+    criado_em      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    atualizado_em  TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_op_maquina FOREIGN KEY (maquina_id) REFERENCES maquinas(id) ON DELETE RESTRICT,
+    CONSTRAINT ck_op_numero CHECK (numero REGEXP '^OP-[0-9]{4}$'),
+    CONSTRAINT ck_op_quantidade CHECK (quantidade > 0),
+    CONSTRAINT ck_op_datas CHECK (termino >= inicio),
+    INDEX ix_op_maquina_status (maquina_id, status),
+    INDEX ix_op_artigo (artigo)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Tentativas de login erradas (limite contra força bruta, ver login_process.php).
+-- Não guarda a senha digitada, só o usuário, o IP e o horário.
+CREATE TABLE IF NOT EXISTS tentativas_login (
+    id         BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    usuario    VARCHAR(50) NOT NULL,
+    ip         VARCHAR(45) NOT NULL,
+    criado_em  TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX ix_tentativas (usuario, ip, criado_em)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE OR REPLACE VIEW vw_indicadores_maquina AS
 SELECT
     m.id                                                  AS machine_id,

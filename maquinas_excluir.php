@@ -5,9 +5,10 @@
 // 1º POST (botão "Excluir" da lista): mostra a tela de confirmação.
 // 2º POST (botão "Sim, excluir", com confirmar=1): apaga de fato.
 //
-// A tabela pulsos tem FK para maquinas com ON DELETE RESTRICT, então os pulsos
-// da máquina precisam ser apagados ANTES dela. As duas exclusões acontecem na
-// mesma transação: ou apaga tudo, ou não apaga nada (rollback).
+// As tabelas pulsos e ordens_producao têm FK para maquinas com ON DELETE
+// RESTRICT, então os pulsos e as OPs da máquina precisam ser apagados ANTES
+// dela. As exclusões acontecem na mesma transação: ou apaga tudo, ou não
+// apaga nada (rollback).
 
 require_once __DIR__ . '/conexao.php';
 require_once __DIR__ . '/protect.php';
@@ -26,7 +27,8 @@ if ($id === null) {
 try {
     $stmt = $pdo->prepare(
         'SELECT m.id, m.nome,
-                (SELECT COUNT(*) FROM pulsos p WHERE p.maquina_id = m.id) AS total_pulsos
+                (SELECT COUNT(*) FROM pulsos p WHERE p.maquina_id = m.id) AS total_pulsos,
+                (SELECT COUNT(*) FROM ordens_producao o WHERE o.maquina_id = m.id) AS total_ops
            FROM maquinas m
           WHERE m.id = ?'
     );
@@ -51,6 +53,9 @@ if (campoPost('confirmar') === '1') {
         $stmt = $pdo->prepare('DELETE FROM pulsos WHERE maquina_id = ?');
         $stmt->execute([$id]);
 
+        $stmt = $pdo->prepare('DELETE FROM ordens_producao WHERE maquina_id = ?');
+        $stmt->execute([$id]);
+
         $stmt = $pdo->prepare('DELETE FROM maquinas WHERE id = ?');
         $stmt->execute([$id]);
 
@@ -60,8 +65,15 @@ if (campoPost('confirmar') === '1') {
         } else {
             $pdo->commit();
             renovarTokenCsrf();
+            $junto = [];
+            if ((int) $maquina['total_pulsos'] > 0) {
+                $junto[] = (int) $maquina['total_pulsos'] . ' pulso(s)';
+            }
+            if ((int) $maquina['total_ops'] > 0) {
+                $junto[] = (int) $maquina['total_ops'] . ' ordem(ns) de produção';
+            }
             definirAviso('ok', 'Máquina "' . $maquina['nome'] . '" excluída'
-                . ((int) $maquina['total_pulsos'] > 0 ? ' junto com ' . (int) $maquina['total_pulsos'] . ' pulso(s).' : '.'));
+                . ($junto ? ' junto com ' . implode(' e ', $junto) . '.' : '.'));
         }
     } catch (PDOException $ex) {
         if ($pdo->inTransaction()) {
@@ -99,6 +111,13 @@ require __DIR__ . '/includes/layout_inicio.php';
                 </p>
             <?php else: ?>
                 <p class="texto-fraco">Esta máquina não tem pulsos registrados.</p>
+            <?php endif; ?>
+
+            <?php if ((int) $maquina['total_ops'] > 0): ?>
+                <p class="alerta alerta-erro" role="alert">
+                    Esta máquina tem <strong><?= (int) $maquina['total_ops'] ?></strong> ordem(ns) de produção.
+                    Elas também serão apagadas. Se quiser só tirar a máquina do painel, desative-a em vez de excluir.
+                </p>
             <?php endif; ?>
 
             <form method="post" action="maquinas_excluir.php" class="form-crud">

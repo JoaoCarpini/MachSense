@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/conexao.php';
+require_once __DIR__ . '/protect.php';
 require_once __DIR__ . '/includes/funcoes.php';
 
 // Indicadores de cada máquina ativa + estado e motivo do ÚLTIMO pulso

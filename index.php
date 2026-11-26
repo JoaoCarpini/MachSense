@@ -1,5 +1,17 @@
 <?php
-session_start();
+
+require_once __DIR__ . '/includes/seguranca.php';
+
+configurarErros();
+iniciarSessaoSegura();
+enviarCabecalhosSeguranca();
+
+// Quem já está logado vai direto para o painel
+if (!empty($_SESSION['usuario_id'])) {
+    header('Location: dashboard.php');
+    exit;
+}
+
 $erro = $_SESSION['login_erro'] ?? null;
 unset($_SESSION['login_erro']);
 ?>
@@ -26,21 +38,23 @@ unset($_SESSION['login_erro']);
 
         <hr class="login-divider">
 
-        <?php if ($erro): ?>
-            <p class="login-error"><?= htmlspecialchars($erro) ?></p>
+        <?php if (is_string($erro) && $erro !== ''): ?>
+            <p class="login-error"><?= e($erro) ?></p>
         <?php endif; ?>
 
         <form action="login_process.php" method="POST" id="loginForm">
+            <input type="hidden" name="csrf" value="<?= e(tokenCsrf()) ?>">
+
             <label for="usuario">USUÁRIO</label>
             <div class="input-group">
                 <span class="input-icon">👤</span>
-                <input type="text" id="usuario" name="usuario" placeholder="admin" autocomplete="username" required>
+                <input type="text" id="usuario" name="usuario" placeholder="admin" autocomplete="username" maxlength="50" required>
             </div>
 
             <label for="senha">SENHA</label>
             <div class="input-group">
                 <span class="input-icon">🔒</span>
-                <input type="password" id="senha" name="senha" placeholder="••••••••••••" required>
+                <input type="password" id="senha" name="senha" placeholder="••••••••••••" autocomplete="current-password" maxlength="72" required>
             </div>
 
             <button type="submit" id="btnAcessar">ACESSAR PRODUÇÃO</button>

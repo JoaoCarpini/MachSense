@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/conexao.php';
+require_once __DIR__ . '/protect.php';
 require_once __DIR__ . '/includes/funcoes.php';
 
 /* ------------------------------------------------------------------
@@ -170,8 +170,8 @@ require __DIR__ . '/includes/layout_inicio.php';
                                     <strong><?= e($pct === null ? 'Sem dados' : formatarPct($pct)) ?></strong>
                                 </div>
                                 <div class="progress" role="progressbar" aria-valuenow="<?= $largura ?>" aria-valuemin="0" aria-valuemax="100">
-                                    <span class="bar bar-<?= classeDisponibilidade($pct, $meta) ?>" style="width: <?= $largura ?>%"></span>
-                                    <span class="meta-mark" style="left: <?= (int) round($meta) ?>%"></span>
+                                    <span class="bar bar-<?= classeDisponibilidade($pct, $meta) ?>" data-largura="<?= $largura ?>"></span>
+                                    <span class="meta-mark" data-posicao="<?= (int) round($meta) ?>"></span>
                                 </div>
                             </li>
                         <?php endforeach; ?>
@@ -204,7 +204,7 @@ require __DIR__ . '/includes/layout_inicio.php';
                                 <strong><?= e(formatarMinutos($minutos)) ?></strong>
                             </div>
                             <div class="progress" aria-hidden="true">
-                                <span class="bar bar-warn" style="width: <?= $largura ?>%"></span>
+                                <span class="bar bar-warn" data-largura="<?= $largura ?>"></span>
                             </div>
                         </li>
                     <?php endforeach; ?>

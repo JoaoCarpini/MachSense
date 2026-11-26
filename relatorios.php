@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/conexao.php';
+require_once __DIR__ . '/protect.php';
 require_once __DIR__ . '/includes/funcoes.php';
 
 /* ------------------------------------------------------------------
@@ -26,191 +26,101 @@ $desde = match ($periodo) {
 };
 
 /* ------------------------------------------------------------------
- * FILTRO POR ARTIGO (GET: artigo, janelas, outras)
+ * FILTRO POR ARTIGO (GET: artigo)
  *
- * As OPs ficam no localStorage do navegador. Quando o usuário escolhe um
- * artigo, o ordens_por_artigo.js envia as "janelas" das OPs desse artigo
- * (Em andamento, Pausada ou Concluída):
- *     janelas = "Máquina 1|2026-11-10|2026-11-14;Máquina 2|2026-11-12|2026-11-13"
- * (máquina | início | término, separadas por ";"). O parâmetro "outras" tem
- * o mesmo formato e traz as OPs de OUTROS artigos que encostam nessas
- * janelas; ele serve só para o aviso de mistura.
+ * As OPs ficam na tabela ordens_producao. Com um artigo escolhido, o
+ * relatório conta só os dias em que a máquina tinha uma OP desse artigo que
+ * de fato rodou (Em andamento, Pausada ou Concluída), pelas datas planejadas
+ * da OP (início e término).
  *
- * Isso vem do navegador, então é entrada NÃO confiável:
- *   - cada janela passa por regex + checkdate; no máximo 50; inválidas saem;
- *   - o nome da máquina vira id por consulta preparada;
- *   - no SQL só entram placeholders (:jm0, :ji0...), nunca os valores;
- *   - entrada malformada = relatório normal, sem filtro e sem erro na tela.
+ * O artigo vem da URL, então é conferido contra a lista de artigos do banco
+ * (lista branca). Artigo desconhecido = relatório normal, sem filtro.
+ * No SQL o artigo entra só como parâmetro (:artigo), nunca no texto.
  * ------------------------------------------------------------------ */
 
-const MAX_JANELAS = 50;
+// Status que indicam que o artigo esteve de verdade na máquina
+const STATUS_COM_PRODUCAO = "'em_andamento', 'pausada', 'concluida'";
 
-/**
- * Lê "máquina|AAAA-MM-DD|AAAA-MM-DD;...". Devolve as janelas válidas,
- * [] para texto vazio, ou null se a entrada for malformada (tipo errado,
- * grande demais, mais de 50 itens ou nenhum item válido).
- */
-function lerJanelas(mixed $valor): ?array
-{
-    if (!is_string($valor) || strlen($valor) > 10000) {
-        return null;
-    }
-    if ($valor === '') {
-        return [];
-    }
-
-    $itens = explode(';', $valor);
-    if (count($itens) > MAX_JANELAS) {
-        return null;
-    }
-
-    $janelas = [];
-    foreach ($itens as $item) {
-        // Nome da máquina: 1 a 100 caracteres, sem "|", ";" nem caracteres de
-        // controle. Depois duas datas AAAA-MM-DD. O /u trata o texto como UTF-8.
-        $ok = preg_match(
-            '/^([^|;\x00-\x1F\x7F]{1,100})\|(\d{4})-(\d{2})-(\d{2})\|(\d{4})-(\d{2})-(\d{2})$/u',
-            $item,
-            $m
-        );
-        // checkdate(mês, dia, ano) recusa datas que não existem, como 30/02
-        if ($ok !== 1
-            || !checkdate((int) $m[3], (int) $m[4], (int) $m[2])
-            || !checkdate((int) $m[6], (int) $m[7], (int) $m[5])) {
-            continue;
-        }
-
-        $inicio = "{$m[2]}-{$m[3]}-{$m[4]}";
-        $fim = "{$m[5]}-{$m[6]}-{$m[7]}";
-        if ($fim < $inicio) {
-            continue; // término antes do início: janela inválida
-        }
-        $janelas[] = ['maquina' => $m[1], 'inicio' => $inicio, 'fim' => $fim];
-    }
-
-    return $janelas ? $janelas : null;
+$opsIndisponivel = false;
+$artigos = [];
+try {
+    // A collation do banco não diferencia maiúsculas: "Tampa" e "tampa" viram um só
+    $stmt = $pdo->prepare('SELECT artigo FROM ordens_producao GROUP BY artigo ORDER BY artigo');
+    $stmt->execute();
+    $artigos = $stmt->fetchAll(PDO::FETCH_COLUMN);
+} catch (PDOException $ex) {
+    // Banco antigo, sem a tabela ordens_producao: o relatório funciona sem o filtro
+    error_log('[MachSense] relatorios.php (ordens): ' . $ex->getMessage());
+    $opsIndisponivel = true;
 }
 
-/**
- * Troca o nome da máquina de cada janela pelo id do banco (consulta
- * preparada). Janelas de máquinas que não existem são descartadas.
- */
-function janelasComId(PDO $pdo, array $janelas): array
-{
-    $stmt = $pdo->prepare('SELECT id, nome FROM maquinas WHERE nome = :nome');
-    $encontradas = []; // nome enviado => linha do banco (ou null)
-    $resultado = [];
-
-    foreach ($janelas as $j) {
-        if (!array_key_exists($j['maquina'], $encontradas)) {
-            $stmt->execute([':nome' => $j['maquina']]);
-            $encontradas[$j['maquina']] = $stmt->fetch() ?: null;
-        }
-        $maquina = $encontradas[$j['maquina']];
-        if ($maquina) {
-            $resultado[] = [
-                'maquina_id' => (int) $maquina['id'],
-                'maquina'    => $maquina['nome'],
-                'inicio'     => $j['inicio'],
-                'fim'        => $j['fim'],
-            ];
+$artigoEscolhido = null;
+$artigoGet = $_GET['artigo'] ?? '';
+if (is_string($artigoGet) && trim($artigoGet) !== '' && mb_check_encoding($artigoGet, 'UTF-8')) {
+    $procurado = mb_strtolower(trim($artigoGet));
+    foreach ($artigos as $artigo) {
+        if (mb_strtolower($artigo) === $procurado) {
+            $artigoEscolhido = $artigo;
+            break;
         }
     }
-
-    return $resultado;
-}
-
-/**
- * Monta o trecho de SQL das janelas, por exemplo
- *     (d.maquina_id = :jm0 AND d.dia BETWEEN :ji0 AND :jf0) OR (...)
- * e a lista de valores. Só os NOMES dos placeholders (feitos com o número
- * da janela) entram no texto do SQL; os valores vão separados, no execute().
- */
-function sqlDasJanelas(array $janelas): array
-{
-    if (!$janelas) {
-        return ['sql' => '0 = 1', 'params' => []]; // nenhuma janela: nenhum dia entra
-    }
-
-    $partes = [];
-    $params = [];
-    foreach (array_values($janelas) as $n => $j) {
-        $partes[] = "(d.maquina_id = :jm{$n} AND d.dia BETWEEN :ji{$n} AND :jf{$n})";
-        $params[":jm{$n}"] = $j['maquina_id'];
-        $params[":ji{$n}"] = $j['inicio'];
-        $params[":jf{$n}"] = $j['fim'];
-    }
-
-    return ['sql' => '(' . implode(' OR ', $partes) . ')', 'params' => $params];
-}
-
-/**
- * Dias em que, na MESMA máquina, uma janela do artigo se sobrepõe à janela
- * de OUTRO artigo, dentro do período. Datas AAAA-MM-DD comparam como texto.
- */
-function diasMisturados(array $janelas, array $outras, string $desdeDia): array
-{
-    $misturas = [];
-    foreach ($janelas as $j) {
-        foreach ($outras as $o) {
-            if ($j['maquina_id'] !== $o['maquina_id']) {
-                continue;
-            }
-            $inicio = max($j['inicio'], $o['inicio'], $desdeDia);
-            $fim = min($j['fim'], $o['fim']);
-            if ($inicio <= $fim) {
-                // a chave evita repetir o mesmo trecho na lista
-                $misturas[$j['maquina'] . $inicio . $fim] = ['maquina' => $j['maquina'], 'inicio' => $inicio, 'fim' => $fim];
-            }
-        }
-    }
-
-    return array_values($misturas);
 }
 
 // $filtro = null significa relatório normal (sem artigo)
 $filtro = null;
-$artigoGet = $_GET['artigo'] ?? null;
+if ($artigoEscolhido !== null) {
+    // Máquinas que tiveram alguma OP desse artigo (as outras aparecem com "—")
+    $stmt = $pdo->prepare(
+        'SELECT DISTINCT maquina_id FROM ordens_producao
+          WHERE artigo = :artigo AND status IN (' . STATUS_COM_PRODUCAO . ')'
+    );
+    $stmt->execute([':artigo' => $artigoEscolhido]);
+    $maquinasDoArtigo = array_fill_keys(array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN)), true);
 
-if (is_string($artigoGet) && array_key_exists('janelas', $_GET)) {
-    $artigo = trim($artigoGet);
-    $artigoOk = $artigo !== '' && mb_check_encoding($artigo, 'UTF-8') && mb_strlen($artigo) <= 60;
-    $janelas = lerJanelas($_GET['janelas']);
+    // Dias em que, na MESMA máquina, uma OP do artigo se sobrepõe à OP de
+    // OUTRO artigo (dentro do período): os números desses dias misturam os dois.
+    $stmt = $pdo->prepare(
+        'SELECT DISTINCT x.maquina, x.inicio, x.fim
+           FROM (SELECT m.nome AS maquina,
+                        GREATEST(a.inicio, b.inicio, CAST(:desde AS DATE)) AS inicio,
+                        LEAST(a.termino, b.termino) AS fim
+                   FROM ordens_producao a
+                   JOIN ordens_producao b
+                     ON b.maquina_id = a.maquina_id
+                    AND b.artigo <> a.artigo
+                    AND b.inicio <= a.termino
+                    AND a.inicio <= b.termino
+                   JOIN maquinas m ON m.id = a.maquina_id
+                  WHERE a.artigo = :artigo
+                    AND a.status IN (' . STATUS_COM_PRODUCAO . ')
+                    AND b.status IN (' . STATUS_COM_PRODUCAO . ')) x
+          WHERE x.inicio <= x.fim
+          ORDER BY x.maquina, x.inicio'
+    );
+    $stmt->execute([':desde' => substr($desde, 0, 10), ':artigo' => $artigoEscolhido]);
 
-    if ($artigoOk && $janelas !== null) {
-        $janelasComId = janelasComId($pdo, $janelas);
-
-        // Vieram janelas, mas nenhuma máquina existe: entrada malformada.
-        // Sem janelas ("") é válido: o artigo não tem OP iniciada.
-        if (!$janelas || $janelasComId) {
-            $outras = janelasComId($pdo, lerJanelas($_GET['outras'] ?? '') ?? []);
-            $filtro = [
-                'artigo'   => $artigo,
-                'janelas'  => $janelasComId,
-                // máquinas que têm janela (as outras aparecem com "—")
-                'maquinas' => array_fill_keys(array_column($janelasComId, 'maquina_id'), true),
-                'misturas' => diasMisturados($janelasComId, $outras, substr($desde, 0, 10)),
-            ];
-        }
-    }
+    $filtro = [
+        'artigo'   => $artigoEscolhido,
+        'maquinas' => $maquinasDoArtigo,
+        'misturas' => $stmt->fetchAll(),
+    ];
 }
 
-// Trecho extra das consultas: vazio sem filtro (consultas iguais às de antes)
+// Trecho extra das consultas: vazio sem filtro (consultas iguais às de antes).
+// Com filtro, só entram os dias (d.dia) em que a máquina tinha uma OP do artigo.
 $condicaoArtigo = '';
 $paramsArtigo = [];
-// Parâmetros extras do link "Exportar CSV": com artigo, o CSV recebe o mesmo
-// filtro da tela. http_build_query codifica os valores para a URL e, na hora
-// de imprimir, e() escapa o "&" para o HTML.
+// Parâmetro extra do link "Exportar CSV": o CSV recebe o mesmo filtro da tela.
+// http_build_query codifica o valor para a URL e, ao imprimir, e() escapa o "&".
 $parametrosArtigoCsv = '';
 if ($filtro) {
-    $sqlJanelas = sqlDasJanelas($filtro['janelas']);
-    $condicaoArtigo = ' AND ' . $sqlJanelas['sql'];
-    $paramsArtigo = $sqlJanelas['params'];
-    $parametrosArtigoCsv = '&' . http_build_query([
-        'artigo'  => $filtro['artigo'],
-        'janelas' => $_GET['janelas'],
-        'outras'  => is_string($_GET['outras'] ?? null) ? $_GET['outras'] : '',
-    ]);
+    $condicaoArtigo = ' AND EXISTS (SELECT 1 FROM ordens_producao o
+                                     WHERE o.maquina_id = d.maquina_id
+                                       AND o.artigo = :artigo
+                                       AND o.status IN (' . STATUS_COM_PRODUCAO . ')
+                                       AND d.dia BETWEEN o.inicio AND o.termino)';
+    $paramsArtigo = [':artigo' => $filtro['artigo']];
+    $parametrosArtigoCsv = '&' . http_build_query(['artigo' => $filtro['artigo']]);
 }
 
 $intervalo = intervaloPulso($pdo);
@@ -374,6 +284,17 @@ require __DIR__ . '/includes/layout_inicio.php';
                         <?php endforeach; ?>
                     </select>
                 </label>
+                <?php if ($artigos): ?>
+                    <label class="filtro-artigo">
+                        <span>Artigo</span>
+                        <select name="artigo">
+                            <option value="">Todos</option>
+                            <?php foreach ($artigos as $artigo): ?>
+                                <option value="<?= e($artigo) ?>"<?= $filtro && $filtro['artigo'] === $artigo ? ' selected' : '' ?>><?= e($artigo) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+                <?php endif; ?>
                 <button type="submit" class="btn btn-secundario">Aplicar</button>
             </form>
 
@@ -464,41 +385,90 @@ require __DIR__ . '/includes/layout_inicio.php';
         </section>
 
         <?php
-        // Período do filtro em AAAA-MM-DD para o cartão de ordens (só leitura
-        // de variáveis já calculadas acima; nenhuma consulta muda).
-        // "Todo o período" = sem filtro = atributos vazios. Nos outros, o
-        // período vai de $desde (o mesmo das consultas) até hoje.
-        $opsDesde = $periodo === 'todos' ? '' : substr($desde, 0, 10);
-        $opsAte = $periodo === 'todos' ? '' : date('Y-m-d');
+        /*
+         * Ordens de produção por artigo, no mesmo período do relatório.
+         * Uma OP entra se o intervalo [início, término] dela encostar no
+         * período. "Todo o período" = todas as OPs. Com filtro de artigo,
+         * mostra só aquele artigo.
+         */
+        $opsPorArtigo = [];
+        if (!$opsIndisponivel) {
+            $condicoes = [];
+            $params = [];
+            if ($periodo !== 'todos') {
+                $condicoes[] = 'o.inicio <= :ate AND o.termino >= :desde_dia';
+                $params[':ate'] = date('Y-m-d');
+                $params[':desde_dia'] = substr($desde, 0, 10);
+            }
+            if ($filtro) {
+                $condicoes[] = 'o.artigo = :artigo';
+                $params[':artigo'] = $filtro['artigo'];
+            }
+            $stmt = $pdo->prepare(
+                "SELECT o.artigo,
+                        COUNT(*)                       AS ops,
+                        SUM(o.quantidade)              AS quantidade,
+                        SUM(o.status = 'planejada')    AS planejada,
+                        SUM(o.status = 'em_andamento') AS em_andamento,
+                        SUM(o.status = 'pausada')      AS pausada,
+                        SUM(o.status = 'concluida')    AS concluida,
+                        SUM(o.status = 'cancelada')    AS cancelada
+                   FROM ordens_producao o
+                  " . ($condicoes ? 'WHERE ' . implode(' AND ', $condicoes) : '') . "
+                  GROUP BY o.artigo
+                  ORDER BY o.artigo"
+            );
+            $stmt->execute($params);
+            $opsPorArtigo = $stmt->fetchAll();
+        }
+        $colunasStatus = [
+            'planejada' => 'Planejada', 'em_andamento' => 'Em andamento', 'pausada' => 'Pausada',
+            'concluida' => 'Concluída', 'cancelada' => 'Cancelada',
+        ];
+        $numeroBr = fn($v) => number_format((int) $v, 0, ',', '.');
         ?>
 
-        <!-- Ordens de produção por artigo. As OPs ficam no localStorage do
-             navegador (módulo pi_ordem_producao), que o PHP não enxerga: aqui o
-             PHP só entrega o período em data-desde/data-ate, e o
-             ordens_por_artigo.js faz a conta no navegador. -->
-        <section class="panel panel-gap" id="ops-artigo"
-                 data-desde="<?= e($opsDesde) ?>" data-ate="<?= e($opsAte) ?>"
-                 aria-labelledby="t-ops-artigo">
+        <section class="panel panel-gap" aria-labelledby="t-ops-artigo">
             <header class="panel-head">
                 <div>
                     <h2 id="t-ops-artigo">Ordens de Produção por Artigo</h2>
-                    <p>Dados deste navegador (módulo Ordem de Produção)</p>
-                </div>
-                <div class="filtros">
-                    <label>
-                        <span>Artigo</span>
-                        <!-- As opções são criadas pelo script com os artigos do período -->
-                        <select id="ops-artigo-filtro">
-                            <option value="">Todos</option>
-                        </select>
-                    </label>
+                    <p>OPs do módulo Ordens de Produção no período selecionado</p>
                 </div>
             </header>
-            <div id="ops-artigo-conteudo">
-                <p class="empty"><strong>Nenhuma ordem de produção no período.</strong></p>
-            </div>
-        </section>
 
-        <script src="ordens_por_artigo.js"></script>
+            <?php if ($opsIndisponivel): ?>
+                <p class="empty"><strong>Ordens de produção indisponíveis.</strong>
+                    Importe o schema.sql novo no banco para criar a tabela ordens_producao.</p>
+            <?php elseif (!$opsPorArtigo): ?>
+                <p class="empty"><strong>Nenhuma ordem de produção no período.</strong></p>
+            <?php else: ?>
+                <div class="tabela-wrap tabela-relatorio">
+                    <table class="tabela">
+                        <thead>
+                            <tr>
+                                <th>Artigo</th>
+                                <th class="num">OPs</th>
+                                <th class="num">Qtd. planejada</th>
+                                <?php foreach ($colunasStatus as $rotulo): ?>
+                                    <th class="num"><?= e($rotulo) ?></th>
+                                <?php endforeach; ?>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($opsPorArtigo as $linha): ?>
+                                <tr>
+                                    <td><?= e($linha['artigo']) ?></td>
+                                    <td class="num mono"><?= e($numeroBr($linha['ops'])) ?></td>
+                                    <td class="num mono"><?= e($numeroBr($linha['quantidade'])) ?></td>
+                                    <?php foreach (array_keys($colunasStatus) as $status): ?>
+                                        <td class="num mono"><?= e($numeroBr($linha[$status])) ?></td>
+                                    <?php endforeach; ?>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </section>
 
 <?php require __DIR__ . '/includes/layout_fim.php'; ?>

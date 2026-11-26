@@ -1,3 +1,10 @@
+<?php
+// Exige login como as outras páginas do sistema. Esta página fica numa
+// subpasta, então o login está um nível acima ("..").
+$urlLogin = '../index.php';
+require_once __DIR__ . '/../conexao.php';
+require_once __DIR__ . '/../protect.php';
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -5,6 +12,8 @@
     <!-- Sem esta linha o celular "finge" ser uma tela de 980px e o layout
          mobile-first não funciona -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Token contra CSRF: o script.js manda este valor em toda gravação -->
+    <meta name="csrf-token" content="<?= e(tokenCsrf()) ?>">
     <title>MachSense — Ordens de Produção</title>
     <!-- Ícone da aba "vazio". Sem esta linha o navegador pede /favicon.ico
          sozinho, o arquivo não existe e aparece um erro 404 no console. -->
@@ -36,6 +45,13 @@
         <h1>Ordens de Produção</h1>
         <p class="subtitulo">Planeje o que cada máquina vai produzir e acompanhe o status de cada ordem.</p>
 
+        <!-- Aparece só se este navegador ainda tiver OPs da versão antiga
+             (salvas no localStorage). O botão copia essas OPs para o banco. -->
+        <div id="importar" class="mensagem mensagem-sucesso" role="status" hidden>
+            <p id="importar-texto"></p>
+            <button type="button" id="btn-importar" class="botao botao-primario">Importar para o banco</button>
+        </div>
+
         <!-- ===== Seção 1: formulário de cadastro/edição ===== -->
         <section id="cadastro" class="painel" aria-labelledby="titulo-form">
             <h2 id="titulo-form">Nova ordem de produção</h2>
@@ -45,8 +61,8 @@
             <div id="mensagem" class="mensagem" role="alert" hidden></div>
 
             <!-- novalidate desliga a validação automática do navegador para que
-                 TODA validação seja a nossa, em JavaScript, com mensagens iguais
-                 em qualquer navegador -->
+                 as mensagens sejam as nossas, iguais em qualquer navegador.
+                 O servidor (ordens_producao_api.php) valida tudo de novo. -->
             <form id="form-op" class="form-op" novalidate>
 
                 <!-- Campo escondido: vazio = cadastrando; com um id = editando -->
@@ -75,7 +91,7 @@
 
                 <div class="campo">
                     <label for="maquina">Máquina</label>
-                    <!-- As opções são criadas pelo script a partir da lista MAQUINAS -->
+                    <!-- As opções são criadas pelo script com as máquinas ativas do banco -->
                     <select id="maquina" name="maquina"></select>
                 </div>
 
@@ -110,13 +126,15 @@
             <div id="mensagem-lista" class="mensagem" role="alert" hidden></div>
 
             <!-- Cada OP vira um <li> com um card dentro (montado pelo script) -->
-            <ul id="lista-ops" class="lista-ops"></ul>
+            <ul id="lista-ops" class="lista-ops">
+                <li class="vazio">Carregando ordens…</li>
+            </ul>
         </section>
 
     </main>
 
     <footer class="rodape">
-        <p>MachSense · Programação para Web I · Os dados ficam salvos neste navegador (localStorage).</p>
+        <p>MachSense · Programação para Web I · Os dados ficam no banco do sistema (tabela ordens_producao).</p>
     </footer>
 
     <!-- O script vai no fim do body: quando ele roda, o HTML acima já existe -->

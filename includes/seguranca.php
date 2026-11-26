@@ -135,13 +135,21 @@ function tokenCsrf(): string
     return $_SESSION['csrf_token'];
 }
 
+/** Mesmo que tokenCsrf(); nome usado pelas páginas mais antigas. */
+function csrfToken(): string
+{
+    return tokenCsrf();
+}
+
 /**
  * Confere o token recebido no formulário contra o da sessão.
+ * Sem argumento, lê o campo "csrf" do POST (nome usado pelos formulários).
  * Por quê: hash_equals compara em tempo constante, sem vazar por tempo de
  * resposta quantos caracteres bateram (slide 14).
  */
-function csrfValido(string $enviado): bool
+function csrfValido(?string $enviado = null): bool
 {
+    $enviado ??= campoPost('csrf');
     $esperado = $_SESSION['csrf_token'] ?? '';
 
     return is_string($esperado) && $esperado !== '' && $enviado !== '' && hash_equals($esperado, $enviado);

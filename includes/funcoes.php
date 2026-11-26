@@ -42,37 +42,53 @@ function classeDisponibilidade(?float $pct, float $meta): string
 }
 
 /* ------------------------------------------------------------------
- * SEGURANÇA DE FORMULÁRIOS (CSRF) E AVISOS
+ * AVISOS E PERMISSÕES
+ * O token CSRF (csrfToken/csrfValido) fica em includes/seguranca.php,
+ * carregado pelo protect.php.
  * ------------------------------------------------------------------ */
 
-function csrfToken(): string
-{
-    if (empty($_SESSION['csrf'])) {
-        $_SESSION['csrf'] = bin2hex(random_bytes(32));
-    }
-
-    return $_SESSION['csrf'];
-}
-
-function csrfValido(): bool
-{
-    return is_string($_POST['csrf'] ?? null)
-        && !empty($_SESSION['csrf'])
-        && hash_equals($_SESSION['csrf'], $_POST['csrf']);
-}
-
 /** Guarda um aviso para ser mostrado depois do redirecionamento. */
-function definirAviso(string $tipo, string $mensagem): void
-{
-    $_SESSION['aviso'] = ['tipo' => $tipo, 'mensagem' => $mensagem];
+if (!function_exists('definirAviso')) {
+    function definirAviso(string $tipo, string $mensagem): void
+    {
+        $_SESSION['aviso'] = ['tipo' => $tipo, 'mensagem' => $mensagem];
+    }
 }
 
-function pegarAviso(): ?array
-{
-    $aviso = $_SESSION['aviso'] ?? null;
-    unset($_SESSION['aviso']);
+if (!function_exists('pegarAviso')) {
+    function pegarAviso(): ?array
+    {
+        $aviso = $_SESSION['aviso'] ?? null;
+        unset($_SESSION['aviso']);
 
-    return $aviso;
+        return $aviso;
+    }
+}
+
+/**
+ * Perfil e departamento do usuário logado, lidos do BANCO a cada chamada
+ * (a sessão pode estar desatualizada se o admin mudou algo depois do login).
+ *
+ * @return array{perfil: string, cargo: string}
+ */
+function contaAtual(PDO $pdo): array
+{
+    $stmt = $pdo->prepare('SELECT perfil, cargo FROM usuarios WHERE id = :id');
+    $stmt->execute([':id' => (int) ($_SESSION['usuario_id'] ?? 0)]);
+    $conta = $stmt->fetch() ?: [];
+
+    return ['perfil' => (string) ($conta['perfil'] ?? ''), 'cargo' => (string) ($conta['cargo'] ?? '')];
+}
+
+function ehAdmin(array $conta): bool
+{
+    return $conta['perfil'] === 'admin';
+}
+
+/** Quem pode corrigir o motivo de uma parada: departamento Manutenção e o admin. */
+function podeEditarMotivoParada(array $conta): bool
+{
+    return ehAdmin($conta) || $conta['cargo'] === 'Manutenção';
 }
 
 /* ------------------------------------------------------------------

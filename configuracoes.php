@@ -1,6 +1,7 @@
 <?php
 
-require_once __DIR__ . '/includes/auth.php';
+require_once __DIR__ . '/conexao.php';
+require_once __DIR__ . '/protect.php';
 require_once __DIR__ . '/Usuario.php';
 require_once __DIR__ . '/includes/funcoes.php';
 
@@ -9,8 +10,15 @@ $abas = [
     'maquinas' => 'Máquinas',
 ];
 
+// A aba Usuários só existe para o administrador. O perfil vem do banco a
+// cada acesso, então quem não é admin não vê a aba nem abre pelo endereço.
+$conta = contaAtual($pdo);
+if (ehAdmin($conta)) {
+    $abas['usuarios'] = 'Usuários';
+}
+
 $aba = $_GET['aba'] ?? 'perfil';
-if (!isset($abas[$aba])) {
+if (!is_string($aba) || !isset($abas[$aba])) {
     $aba = 'perfil';
 }
 
@@ -39,8 +47,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (!$usuario || !password_verify($atual, $usuario['senha'])) {
             definirAviso('erro', 'A senha atual está incorreta.');
-        } elseif (mb_strlen($nova) < 6) {
-            definirAviso('erro', 'A nova senha deve ter pelo menos 6 caracteres.');
+        } elseif (!is_string($nova) || strlen($nova) < 8 || strlen($nova) > 72) {
+            // Mesmas regras do cadastro (o bcrypt ignora o que passa de 72 bytes)
+            definirAviso('erro', 'A nova senha deve ter de 8 a 72 caracteres.');
+        } elseif (!preg_match('/[A-Za-z]/', $nova) || !preg_match('/[0-9]/', $nova)) {
+            definirAviso('erro', 'A nova senha precisa ter pelo menos uma letra e um número.');
         } elseif ($nova !== ($_POST['confirmar_senha'] ?? '')) {
             definirAviso('erro', 'A confirmação não confere com a nova senha.');
         } else {
@@ -109,6 +120,14 @@ $csrf = csrfToken();
 
 if ($aba === 'perfil') {
     $usuario = Usuario::buscarPorId((int) $_SESSION['usuario_id']);
+} elseif ($aba === 'usuarios') {
+    $stmt = $pdo->prepare(
+        'SELECT id, nome, usuario, cargo, perfil, criado_em
+           FROM usuarios
+          ORDER BY perfil = \'admin\' DESC, nome'
+    );
+    $stmt->execute();
+    $usuarios = $stmt->fetchAll();
 } else {
     $stmt = $pdo->prepare(
         'SELECT m.id, m.nome, m.meta_disponibilidade, m.ativa,
@@ -166,7 +185,7 @@ require __DIR__ . '/includes/layout_inicio.php';
                         <header class="panel-head">
                             <div>
                                 <h2 id="t-senha">Trocar Senha</h2>
-                                <p>A nova senha deve ter pelo menos 6 caracteres</p>
+                                <p>De 8 a 72 caracteres, com pelo menos uma letra e um número</p>
                             </div>
                         </header>
 
@@ -180,17 +199,63 @@ require __DIR__ . '/includes/layout_inicio.php';
                             </label>
                             <label class="campo">
                                 <span>Nova senha</span>
-                                <input type="password" name="nova_senha" autocomplete="new-password" minlength="6" required>
+                                <input type="password" name="nova_senha" autocomplete="new-password" minlength="8" maxlength="72" required>
                             </label>
                             <label class="campo">
                                 <span>Confirmar nova senha</span>
-                                <input type="password" name="confirmar_senha" autocomplete="new-password" minlength="6" required>
+                                <input type="password" name="confirmar_senha" autocomplete="new-password" minlength="8" maxlength="72" required>
                             </label>
 
                             <div class="form-acoes">
                                 <button type="submit" class="btn btn-primario">Salvar nova senha</button>
                             </div>
                         </form>
+                    </section>
+
+                <?php elseif ($aba === 'usuarios'): ?>
+
+                    <section class="panel" aria-labelledby="t-usuarios">
+                        <header class="panel-head">
+                            <div>
+                                <h2 id="t-usuarios">Usuários do Sistema</h2>
+                                <p><?= count($usuarios) ?> conta(s) cadastrada(s). Visível só para o administrador.</p>
+                            </div>
+                            <a href="cadastro.php" class="btn btn-primario btn-pequeno">+ Cadastrar usuário</a>
+                        </header>
+
+                        <div class="tabela-wrap">
+                            <table class="tabela">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Usuário</th>
+                                        <th>Departamento</th>
+                                        <th>Perfil</th>
+                                        <th>Cadastrado em</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($usuarios as $u): ?>
+                                        <tr>
+                                            <td>
+                                                <?= e($u['nome']) ?>
+                                                <?php if ((int) $u['id'] === (int) $_SESSION['usuario_id']): ?><small class="texto-fraco">(você)</small><?php endif; ?>
+                                            </td>
+                                            <td class="mono"><?= e($u['usuario']) ?></td>
+                                            <td><?= e($u['cargo'] ?? 'Não informado') ?></td>
+                                            <td>
+                                                <?php if ($u['perfil'] === 'admin'): ?>
+                                                    <span class="selo selo-ok">Administrador</span>
+                                                <?php else: ?>
+                                                    <span class="selo selo-neutro">Usuário</span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="mono"><?= e(formatarDataHora($u['criado_em'])) ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </section>
 
                 <?php else: ?>

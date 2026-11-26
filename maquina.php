@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/conexao.php';
+require_once __DIR__ . '/protect.php';
 require_once __DIR__ . '/includes/funcoes.php';
 
 $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
@@ -44,6 +44,44 @@ if ($maquina) {
     $maiorParada = max(array_merge([1], array_map(fn($p) => (int) $p['tempo_parado_min'], $paradasPorMotivo)));
 
     $historico = buscarPeriodosParada($pdo, ['maquina_id' => $id, 'limite' => 10]);
+
+    /*
+     * Ordem de produção da máquina (tabela ordens_producao). Escolhe UMA,
+     * nesta ordem de prioridade:
+     *   1) Em andamento                      -> "Em produção agora"
+     *   2) Pausada                           -> "Pausada"
+     *   3) Planejada com início hoje         -> "Programada para hoje"
+     *   4) Planejada futura (menor início)   -> "Próxima ordem"
+     * Concluída, Cancelada e Planejada atrasada não entram.
+     */
+    $ordemAtiva = null;
+    $opsIndisponivel = false;
+    try {
+        $stmt = $pdo->prepare(
+            "SELECT numero, artigo, quantidade, inicio, termino, status
+               FROM ordens_producao
+              WHERE maquina_id = :id
+                AND (status IN ('em_andamento', 'pausada')
+                     OR (status = 'planejada' AND inicio >= :hoje))
+              ORDER BY FIELD(status, 'em_andamento', 'pausada', 'planejada'), inicio, id
+              LIMIT 1"
+        );
+        $stmt->execute([':id' => $id, ':hoje' => date('Y-m-d')]);
+        $ordemAtiva = $stmt->fetch() ?: null;
+    } catch (PDOException $ex) {
+        // Banco antigo, sem a tabela ordens_producao: a página abre do mesmo jeito
+        error_log('[MachSense] maquina.php (ordens): ' . $ex->getMessage());
+        $opsIndisponivel = true;
+    }
+
+    if ($ordemAtiva) {
+        [$rotuloOrdem, $seloOrdem] = match (true) {
+            $ordemAtiva['status'] === 'em_andamento' => ['Em produção agora', 'selo-ok'],
+            $ordemAtiva['status'] === 'pausada'      => ['Pausada', 'selo-parada'],
+            $ordemAtiva['inicio'] === date('Y-m-d')  => ['Programada para hoje', 'selo-neutro'],
+            default                                  => ['Próxima ordem', 'selo-neutro'],
+        };
+    }
 
     $tituloPagina = $maquina['maquina'];
     $subtituloPagina = 'Detalhes de disponibilidade e paradas da máquina';
@@ -167,7 +205,7 @@ require __DIR__ . '/includes/layout_inicio.php';
                                         <strong><?= e(formatarMinutos($minutos)) ?></strong>
                                     </div>
                                     <div class="progress" aria-hidden="true">
-                                        <span class="bar bar-warn" style="width: <?= $largura ?>%"></span>
+                                        <span class="bar bar-warn" data-largura="<?= $largura ?>"></span>
                                     </div>
                                 </li>
                             <?php endforeach; ?>
@@ -209,25 +247,32 @@ require __DIR__ . '/includes/layout_inicio.php';
 
             </div>
 
-            <!-- Ordem de produção da máquina. O PHP não enxerga o localStorage
-                 (ele fica no navegador), então só monta o cartão vazio com o nome
-                 da máquina em data-maquina; o ordem_producao_maquina.js lê a
-                 lista de OPs do navegador e preenche o conteúdo. -->
-            <section class="panel panel-gap" id="op-maquina"
-                     data-maquina="<?= e($maquina['maquina']) ?>" aria-labelledby="t-op">
+            <!-- Ordem de produção da máquina (tabela ordens_producao) -->
+            <section class="panel panel-gap" aria-labelledby="t-op">
                 <header class="panel-head">
                     <div>
                         <h2 id="t-op">Ordem de Produção</h2>
                         <p>Ordem ativa desta máquina no módulo Ordens de Produção</p>
                     </div>
-                    <a href="pi_ordem_producao/index.html" class="link-mais">Abrir ordens →</a>
+                    <a href="pi_ordem_producao/index.php" class="link-mais">Abrir ordens →</a>
                 </header>
-                <div id="op-conteudo">
-                    <p class="empty"><strong>Nenhuma ordem de produção ativa.</strong></p>
-                </div>
-            </section>
 
-            <script src="ordem_producao_maquina.js"></script>
+                <?php if ($opsIndisponivel): ?>
+                    <p class="empty"><strong>Ordens de produção indisponíveis.</strong>
+                        Importe o schema.sql novo no banco para criar a tabela ordens_producao.</p>
+                <?php elseif (!$ordemAtiva): ?>
+                    <p class="empty"><strong>Nenhuma ordem de produção ativa.</strong></p>
+                <?php else: ?>
+                    <p><span class="selo <?= e($seloOrdem) ?>"><?= e($rotuloOrdem) ?></span></p>
+                    <dl class="indicadores panel-gap">
+                        <div><dt>Número da OP</dt><dd><?= e($ordemAtiva['numero']) ?></dd></div>
+                        <div><dt>Artigo</dt><dd><?= e($ordemAtiva['artigo']) ?></dd></div>
+                        <div><dt>Quantidade</dt><dd><?= e(number_format((int) $ordemAtiva['quantidade'], 0, ',', '.')) ?> peças</dd></div>
+                        <div><dt>Início</dt><dd><?= e(date('d/m/Y', strtotime($ordemAtiva['inicio']))) ?></dd></div>
+                        <div><dt>Término</dt><dd><?= e(date('d/m/Y', strtotime($ordemAtiva['termino']))) ?></dd></div>
+                    </dl>
+                <?php endif; ?>
+            </section>
 
         <?php endif; ?>
 

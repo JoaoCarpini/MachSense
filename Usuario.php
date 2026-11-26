@@ -80,6 +80,9 @@ class Usuario
         $usuario = self::buscarPorUsuario($login);
 
         if (!$usuario) {
+            // Gasta o mesmo tempo de um usuário que existe: assim o tempo de
+            // resposta não revela quais nomes de usuário estão cadastrados.
+            password_verify($senhaTextoPuro, '$2y$12$abcdefghijklmnopqrstuuJ2Cz8gGm6qZlM3hYV5Lr0b6Gm3x7Vb2');
             return null;
         }
 

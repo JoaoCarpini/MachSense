@@ -16,25 +16,16 @@ require_once __DIR__ . '/includes/maquinas_funcoes.php';
 require_once __DIR__ . '/includes/simulacao_api.php';
 
 if (!requisicaoLocal()) {
-    http_response_code(403);
-    exit('A página de simulação só abre no computador onde o sistema está rodando.');
+    mostrarPaginaErro(403, 'Simulação indisponível',
+        'A página de simulação só abre no computador onde o sistema está rodando.');
 }
 
-try {
-    $stmt = $pdo->prepare('SELECT perfil, cargo FROM usuarios WHERE id = ?');
-    $stmt->execute([(int) $_SESSION['usuario_id']]);
-    $conta = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
-} catch (PDOException $ex) {
-    registrarErroBanco('simulacao (perfil)', $ex);
-    http_response_code(503);
-    exit('Banco de dados indisponível no momento.');
-}
-
-// Pode simular: o administrador e quem é do departamento Produção
-$podeSimular = ($conta['perfil'] ?? '') === 'admin' || ($conta['cargo'] ?? '') === 'Produção';
+// Pode simular: o administrador e quem é do departamento Produção.
+// O protect.php acabou de reler perfil e departamento do banco.
+$podeSimular = ($_SESSION['usuario_perfil'] ?? '') === 'admin' || ($_SESSION['usuario_cargo'] ?? '') === 'Produção';
 if (!$podeSimular) {
-    http_response_code(403);
-    exit('Somente o administrador ou o departamento Produção pode controlar a simulação.');
+    mostrarPaginaErro(403, 'Acesso restrito',
+        'Somente o administrador ou o departamento Produção pode controlar a simulação.');
 }
 
 $env = lerEnvLocal();

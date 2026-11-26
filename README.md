@@ -8,21 +8,21 @@ Os dados não vêm de sensores reais. O sistema trabalha com máquinas simuladas
 
 ## O que o sistema faz hoje
 
-- Login por usuário e senha, com a senha guardada como hash (bcrypt) e novo ID de sessão a cada login.
+- Login por usuário e senha, com a senha guardada como hash (bcrypt), token CSRF, novo ID de sessão a cada login e limite de 5 tentativas erradas em 15 minutos.
 - Dashboard com disponibilidade geral, tempo produzindo, tempo parado, metas atingidas, disponibilidade por hora e paradas por motivo.
 - Máquinas: um card por máquina ativa com o estado atual, e uma tela de detalhe com indicadores e histórico de paradas.
-- Paradas: lista dos períodos de parada, com filtro por período, máquina e motivo.
-- Relatórios: disponibilidade por máquina e por dia em um período, com exportação em CSV.
-- Gerenciar máquinas (CRUD): listar, cadastrar, editar e excluir. A exclusão apaga a máquina e os pulsos dela na mesma transação.
-- Configurações: dados do usuário, troca de senha e cadastro, meta e ativação das máquinas.
+- Paradas: lista dos períodos de parada, com filtro por período, máquina e motivo. O departamento Manutenção (e o administrador) pode corrigir o motivo de uma parada.
+- Relatórios: disponibilidade por máquina e por dia em um período, filtro por artigo das ordens de produção e exportação em CSV.
+- Ordens de Produção: cadastro de OPs (número, artigo, quantidade, máquina e período) com controle de status (Planejada, Em andamento, Pausada, Concluída, Cancelada). Os dados ficam no banco, na tabela `ordens_producao`.
+- Gerenciar máquinas (CRUD): listar, cadastrar, editar e excluir. A exclusão apaga a máquina, os pulsos e as ordens de produção dela na mesma transação.
+- Configurações: dados do usuário, troca de senha e cadastro, meta e ativação das máquinas. O administrador vê também a aba Usuários, com a lista de contas.
 - Cadastro de usuário, só para o administrador, com validação no servidor.
-- Logout.
+- Simulação pelo site, para o administrador e o departamento Produção.
+- Logout (por POST, com token CSRF).
 - Simulador de sensores (`simulador.py`) e API (`api.py`) em Python: o simulador manda um pulso por máquina e a API grava na tabela `pulsos`. O dashboard se atualiza sozinho a cada 10 segundos.
 
 ## O que ainda está em desenvolvimento
 
-- Token CSRF no formulário de login e logout por POST.
-- Unificar o controle de acesso. As páginas do CRUD usam o `protect.php`; as demais ainda usam o `includes/auth.php`.
 - Escolher o perfil ao cadastrar um usuário. Hoje toda conta nova é um usuário comum, e só o `admin` do banco é administrador.
 
 ## Tecnologias
@@ -34,7 +34,7 @@ PHP puro (sem framework), MySQL/MariaDB com PDO, HTML, CSS e JavaScript. O simul
 1. Instale o XAMPP e ligue o Apache e o MySQL pelo painel.
 2. Copie a pasta do projeto para `C:\xampp\htdocs\machsense`.
 3. Abra o phpMyAdmin (`http://localhost/phpmyadmin`), crie um banco chamado `machsense` com collation `utf8mb4_unicode_ci`, entre nele e use a aba Importar para carregar o arquivo `schema.sql`. Ele cria as tabelas, as views e os dados iniciais (3 máquinas, 4 motivos de parada, o intervalo de 5 minutos e o usuário `admin`). Se preferir, o `banco_de_dados.txt` faz a mesma coisa e ainda cria o banco: cole o conteúdo na aba SQL.
-   - Já tem o banco de uma versão anterior? Importe o `schema.sql` de novo no mesmo banco. O script pode ser repetido sem problema: atualiza as views e acrescenta a coluna `perfil` na tabela `usuarios`.
+   - Já tem o banco de uma versão anterior? Importe o `schema.sql` de novo no mesmo banco. O script pode ser repetido sem problema: não apaga nenhum dado, atualiza as views, acrescenta a coluna `perfil` na tabela `usuarios` e cria as tabelas que faltarem (`ordens_producao` e `tentativas_login`).
 4. Copie `config.example.php` para `config.local.php` e confira os dados de conexão. No XAMPP padrão são host `localhost`, porta `3306`, usuário `root` e senha vazia. O `config.local.php` não vai para o Git.
 5. No `php.ini`, confirme `extension=pdo_mysql`, `display_errors = Off`, `log_errors = On` e `session.cookie_httponly = 1`, e reinicie o Apache.
 6. Para ver o painel com dados, importe também `database/dados_demo.sql` no banco `machsense`. Ele gera 7 dias de sinais (das 08h às 18h) para as 3 primeiras máquinas ativas e pode ser repetido sem duplicar. Sem ele, o dashboard abre vazio.
@@ -87,6 +87,9 @@ Problemas comuns:
 - Simulador diz "Nenhuma máquina ativa": cadastre ou ative máquinas no site (Gerenciar máquinas).
 - Página Simulação diz "desligada": falta `MACHSENSE_SIMULACAO_NO_SITE=1` no `.env.local`. O item do menu só aparece para o administrador e para o departamento Produção.
 - Página Simulação diz API "Fora do ar": rode `iniciar_api.bat` (ou o comando do uvicorn) e deixe a janela aberta.
+- Login diz "Muitas tentativas erradas": espere 15 minutos ou, no phpMyAdmin, rode `DELETE FROM tentativas_login;`.
+- Ordens de Produção diz que a tabela não existe: importe o `schema.sql` de novo no banco `machsense` (não apaga dados).
+- OPs antigas sumiram: a versão anterior do módulo salvava as OPs só no navegador. Abra Ordens de Produção no mesmo navegador de antes e clique em **Importar para o banco**.
 - Dashboard abre vazio: ainda não chegou nenhum pulso. Ligue a API e o simulador; a página recarrega sozinha quando o primeiro pulso chegar.
 
 ## Estrutura do projeto
@@ -100,14 +103,16 @@ maquinas.php         cards das máquinas ativas
 maquina.php          detalhe de uma máquina
 paradas.php          períodos de parada com filtros
 relatorios.php       relatório por período e exportação CSV
-configuracoes.php    perfil e metas das máquinas
+configuracoes.php    perfil, metas das máquinas e lista de usuários (só administrador)
+ordens_producao_api.php  API em JSON do módulo Ordens de Produção (lê e grava a tabela ordens_producao)
+pi_ordem_producao/   módulo Ordens de Produção (index.php, css/ e js/), exige login
 dashboard.css / .js  estilo e gráficos do painel (o .js também atualiza os números a cada 10 s)
 dashboard_dados.php  os números do dashboard em JSON (só leitura, exige login)
 cadastro.php         criar conta de usuário (só administrador)
 cadastro.css         estilo do cadastro
 Usuario.php          consultas de usuário
 conexao.php          conexão PDO (dados vêm de config.local.php)
-protect.php          exige login: sessão segura + redireciona para index.php
+protect.php          exige login em todas as páginas: sessão segura, CSP + redireciona para index.php
 maquinas_listar.php  CRUD de máquinas: lista (Read)
 maquinas_criar.php   CRUD de máquinas: cadastro (Create)
 maquinas_editar.php  CRUD de máquinas: edição (Update)
@@ -131,13 +136,15 @@ schema.sql           tabelas, views e dados iniciais
 
 ## Banco de dados
 
-O banco `machsense` tem 5 tabelas:
+O banco `machsense` tem 7 tabelas:
 
 - `usuarios`: quem acessa o sistema (nome, usuário, hash da senha, cargo e perfil `admin` ou `usuario`).
 - `maquinas`: as máquinas, com a meta de disponibilidade em % (padrão 85) e se estão ativas.
 - `motivos_parada`: almoço, furo de processo, manutenção e setup.
 - `parametros`: configurações, por enquanto o intervalo entre sinais (5 minutos).
 - `pulsos`: um registro por sinal de cada máquina, com o horário, o estado (rodando ou parado) e o motivo quando está parada.
+- `ordens_producao`: as ordens de produção, com número (OP-0000, único), artigo, quantidade, máquina, início, término e status. O banco confere o formato do número, a quantidade maior que zero e o término depois do início.
+- `tentativas_login`: tentativas de login erradas (usuário, IP e horário), usadas para limitar a força bruta. Não guarda senha.
 
 Uma regra do banco garante que uma parada sempre tem motivo e que uma máquina rodando nunca tem. Cada pulso vale o intervalo configurado, então o tempo produzindo é a quantidade de pulsos rodando vezes 5 minutos.
 
@@ -151,9 +158,17 @@ Os cálculos ficam em 5 views, e as páginas leem delas em vez de repetir o SQL:
 
 ## Segurança
 
-Dados sensíveis só por POST, validação no servidor, `htmlspecialchars` em tudo que volta para a tela, prepared statements em todas as consultas, `password_hash` para senhas, token CSRF nos formulários, cookies de sessão com `HttpOnly` e `SameSite=Strict`, e erros gravados em log em vez de aparecerem na tela.
+Dados sensíveis só por POST, validação no servidor, `htmlspecialchars` em tudo que volta para a tela, prepared statements em todas as consultas, `password_hash` para senhas, token CSRF em todos os formulários (inclusive login e logout), cookies de sessão com `HttpOnly` e `SameSite=Strict`, e erros gravados em log em vez de aparecerem na tela.
 
-O cadastro de usuário só abre para administrador. A página confere o perfil no banco a cada acesso: quem não está logado volta para o login, e quem está logado sem ser administrador recebe 403.
+Todas as páginas que exigem login passam pelo `protect.php`, que liga a sessão segura e os cabeçalhos de segurança (CSP, X-Frame-Options, nosniff). A CSP só aceita CSS e JavaScript do próprio site, por isso nenhuma página usa `style="..."` nem script embutido no HTML.
+
+O login limita as tentativas: 5 erros do mesmo usuário no mesmo IP em 15 minutos bloqueiam novas tentativas até a janela passar.
+
+Permissões conferidas no banco a cada acesso (não só na sessão):
+
+- Cadastro de usuário e aba Usuários: só administrador (os outros recebem 403 ou não veem a aba).
+- Simulação: administrador e departamento Produção.
+- Corrigir o motivo de uma parada: administrador e departamento Manutenção.
 
 A API do simulador sobe só em 127.0.0.1, exige a chave `X-API-Key` para gravar pulsos, não tem CORS aberto e usa consultas parametrizadas. Se o banco cair, responde 503 com mensagem genérica e grava o detalhe no log.
 

@@ -1,7 +1,7 @@
 <?php
 
-require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/conexao.php';
+require_once __DIR__ . '/protect.php';
 require_once __DIR__ . '/includes/funcoes.php';
 
 /* ------------------------------------------------------------------
@@ -28,6 +28,96 @@ $desde = match ($periodo) {
     default => null,
 };
 
+// Endereço desta página com os filtros atuais (para voltar a ela depois do POST)
+$urlFiltros = 'paradas.php?' . http_build_query(array_filter([
+    'periodo' => $periodo,
+    'motivo'  => $motivoId,
+    'maquina' => $maquinaId,
+]));
+
+/* ------------------------------------------------------------------
+ * CORRIGIR O MOTIVO DE UMA PARADA (POST)
+ *
+ * Só o departamento Manutenção (e o administrador) pode trocar o motivo de
+ * um período de parada, por exemplo quando o operador marcou "setup" e na
+ * verdade foi manutenção. A permissão vem do BANCO a cada acesso.
+ *
+ * O período é identificado por máquina + motivo + início + fim, exatamente
+ * como aparece na view vw_periodos_parada. Antes de gravar, conferimos que
+ * esse período existe mesmo; depois trocamos o motivo de todos os pulsos
+ * dele, numa única instrução UPDATE.
+ * ------------------------------------------------------------------ */
+
+$conta = contaAtual($pdo);
+$podeEditarMotivo = podeEditarMotivoParada($conta);
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    $formatoDataHora = '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/';
+    $idPositivo = fn(string $campo) => filter_var(campoPost($campo), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+
+    $maquinaPost = $idPositivo('maquina_id');
+    $motivoAtual = $idPositivo('motivo_atual');
+    $motivoNovo = $idPositivo('motivo_novo');
+    $inicio = campoPost('inicio');
+    $fim = campoPost('fim');
+
+    if (!csrfValido()) {
+        definirAviso('erro', 'Sessão expirada. Recarregue a página e tente novamente.');
+    } elseif (!$podeEditarMotivo) {
+        definirAviso('erro', 'Somente o departamento Manutenção pode alterar o motivo de uma parada.');
+    } elseif ($maquinaPost === false || $motivoAtual === false || $motivoNovo === false
+        || preg_match($formatoDataHora, $inicio) !== 1 || preg_match($formatoDataHora, $fim) !== 1 || $fim <= $inicio) {
+        definirAviso('erro', 'Dados da parada inválidos.');
+    } elseif ($motivoNovo === $motivoAtual) {
+        definirAviso('erro', 'Escolha um motivo diferente do atual.');
+    } else {
+        try {
+            $stmt = $pdo->prepare('SELECT descricao FROM motivos_parada WHERE id = :id');
+            $stmt->execute([':id' => $motivoNovo]);
+            $descricaoNova = $stmt->fetchColumn();
+
+            $stmt = $pdo->prepare(
+                'SELECT 1 FROM vw_periodos_parada
+                  WHERE maquina_id = :maquina AND motivo_id = :motivo AND inicio = :inicio AND fim = :fim'
+            );
+            $stmt->execute([':maquina' => $maquinaPost, ':motivo' => $motivoAtual, ':inicio' => $inicio, ':fim' => $fim]);
+            $periodoExiste = (bool) $stmt->fetchColumn();
+
+            if ($descricaoNova === false) {
+                definirAviso('erro', 'Motivo inválido.');
+            } elseif (!$periodoExiste) {
+                definirAviso('erro', 'Esta parada não foi encontrada. Ela pode ter mudado; atualize a página.');
+            } else {
+                // O fim do período é o último pulso + 1 intervalo, por isso "<"
+                $stmt = $pdo->prepare(
+                    "UPDATE pulsos
+                        SET motivo_id = :novo
+                      WHERE maquina_id = :maquina
+                        AND estado = 'parado'
+                        AND motivo_id = :atual
+                        AND `timestamp` >= :inicio
+                        AND `timestamp` < :fim"
+                );
+                $stmt->execute([
+                    ':novo' => $motivoNovo, ':maquina' => $maquinaPost, ':atual' => $motivoAtual,
+                    ':inicio' => $inicio, ':fim' => $fim,
+                ]);
+                renovarTokenCsrf();
+                definirAviso('ok', 'Motivo da parada alterado para "' . nomeMotivo((string) $descricaoNova)
+                    . '" (' . $stmt->rowCount() . ' pulso(s) corrigido(s)).');
+            }
+        } catch (PDOException $ex) {
+            error_log('[MachSense] paradas.php (alterar motivo): ' . $ex->getMessage());
+            definirAviso('erro', 'Não foi possível alterar o motivo agora. Tente novamente em instantes.');
+        }
+    }
+
+    header('Location: ' . $urlFiltros);
+    exit;
+}
+
+$aviso = pegarAviso();
+
 $stmt = $pdo->prepare('SELECT id, descricao FROM motivos_parada ORDER BY descricao');
 $stmt->execute();
 $motivos = $stmt->fetchAll();
@@ -49,6 +139,10 @@ $paginaAtiva = 'paradas';
 
 require __DIR__ . '/includes/layout_inicio.php';
 ?>
+
+        <?php if ($aviso): ?>
+            <p class="alerta alerta-<?= e($aviso['tipo']) ?>" role="status"><?= e($aviso['mensagem']) ?></p>
+        <?php endif; ?>
 
         <div class="toolbar">
             <form class="filtros" method="get" action="paradas.php">
@@ -113,6 +207,9 @@ require __DIR__ . '/includes/layout_inicio.php';
                                         data-maquina="<?= e($p['maquina']) ?>"
                                         data-maquina-id="<?= (int) $p['maquina_id'] ?>"
                                         data-motivo="<?= e(nomeMotivo($p['motivo'])) ?>"
+                                        data-motivo-id="<?= (int) $p['motivo_id'] ?>"
+                                        data-inicio-bruto="<?= e($p['inicio']) ?>"
+                                        data-fim-bruto="<?= e($p['fim']) ?>"
                                         data-inicio="<?= e(formatarDataHora($p['inicio'])) ?>"
                                         data-fim="<?= e(formatarDataHora($p['fim'])) ?>"
                                         data-duracao="<?= e(formatarMinutos((int) $p['duracao_min'])) ?>">
@@ -145,6 +242,30 @@ require __DIR__ . '/includes/layout_inicio.php';
                 </dl>
 
                 <a href="#" class="btn btn-primario" id="detalhe-link-maquina">Ver máquina</a>
+
+                <?php if ($podeEditarMotivo): ?>
+                    <?php /* Os campos escondidos são preenchidos pelo dashboard.js com a linha clicada.
+                             O servidor confere tudo de novo (permissão, token e se a parada existe). */ ?>
+                    <form method="post" action="<?= e($urlFiltros) ?>" class="form-crud panel-gap" id="form-motivo">
+                        <input type="hidden" name="csrf" value="<?= e(csrfToken()) ?>">
+                        <input type="hidden" name="maquina_id" value="">
+                        <input type="hidden" name="motivo_atual" value="">
+                        <input type="hidden" name="inicio" value="">
+                        <input type="hidden" name="fim" value="">
+
+                        <label class="campo">
+                            <span>Corrigir motivo (Manutenção)</span>
+                            <select name="motivo_novo">
+                                <?php foreach ($motivos as $mot): ?>
+                                    <option value="<?= (int) $mot['id'] ?>"><?= e(nomeMotivo($mot['descricao'])) ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </label>
+                        <div class="form-acoes">
+                            <button type="submit" class="btn btn-secundario">Salvar motivo</button>
+                        </div>
+                    </form>
+                <?php endif; ?>
             </aside>
 
         </div>

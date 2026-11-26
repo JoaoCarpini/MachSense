@@ -221,6 +221,17 @@ h2 {
     background-color: #0b1f19;
 }
 
+/* Aviso de importação das OPs antigas do navegador: texto + botão */
+#importar p {
+    margin-bottom: 10px;
+}
+
+/* Botão sem efeito enquanto o servidor responde */
+.botao:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
 
 /* ---------- 7. Formulário ----------
    GRID: o formulário tem linhas E colunas (2 dimensões). Com Grid basta
